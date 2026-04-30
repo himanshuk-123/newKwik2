@@ -1,45 +1,111 @@
 /**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
+ * App.tsx
+ * Fix: SyncManager ke saath syncPendingLeads bhi trigger hota hai
  */
 
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import React from 'react';
+import { View, Platform, StatusBar,AppState } from 'react-native';
+import { initDb } from './src/database';
+import { RootNavigator } from './src/navigation/RootNavigator';
+import { useAppStore } from './src/store/AppStore';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { SyncManager } from './src/services/Syncmanager';
+import { syncPendingLeads, resetStuckPendingLeads } from './src/services/syncService';
+import { submitCreateLeadApi } from './src/services/CreateLead';
+import NetInfo from '@react-native-community/netinfo';
+import SplashScreen from './src/components/SplashScreen';
+import { resetStuckUploads } from './src/database/imageCaptureDb';
+import 'react-native-reanimated';
 
-function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+const App = () => {
+  const { loadStoredUser, isAppReady, user } = useAppStore();
+
+  React.useEffect(() => {
+    const bootstrap = async () => {
+      try {
+        await initDb();
+        await loadStoredUser();
+        // Pre-fetch dashboard so data is ready when Dashboard renders
+        const { isAuthenticated: authed, fetchDashboard: fetch } = useAppStore.getState();
+        if (authed) {
+          await fetch();
+        }
+      } catch (error) {
+        console.error('[App] Bootstrap failed:', error);
+      } finally {
+        // Splash hatao — sab load ho gaya
+        useAppStore.setState({ isAppReady: true });
+      }
+    };
+    bootstrap();
+  }, []);
+
+  // ✅ SyncManager — images upload
+  React.useEffect(() => {
+    if (user?.token) {
+      SyncManager.init(user.token);
+      console.log('[App] SyncManager initialized');
+    }
+    return () => { SyncManager.destroy(); };
+  }, [user]);
+
+  // ✅ FIX: Pending leads sync — online aane par
+  React.useEffect(() => {
+    if (!user?.token) return;
+
+    const unsubscribe = NetInfo.addEventListener(async (state) => {
+      const isOnline = state.isConnected && state.isInternetReachable !== false;
+      if (isOnline && user?.token) {
+        console.log('[App] Online — syncing pending leads...');
+        await resetStuckPendingLeads();
+        await syncPendingLeads(user.token, (payload) =>
+          submitCreateLeadApi(user.token!, payload)
+        );
+      }
+    });
+
+    // App open hone par bhi ek baar check karo
+    NetInfo.fetch().then(async (state) => {
+      const isOnline = state.isConnected && state.isInternetReachable !== false;
+      if (isOnline && user?.token) {
+        await resetStuckPendingLeads();
+        await syncPendingLeads(user.token, (payload) =>
+          submitCreateLeadApi(user.token!, payload)
+        );
+      }
+    });
+
+    return () => { unsubscribe(); };
+  }, [user?.token]);
+
+  // ✅ App foreground mein aaye toh stuck images reset karo
+React.useEffect(() => {
+  if (!user?.token) return;
+  
+  const subscription = AppState.addEventListener('change', (nextState) => {
+    if (nextState === 'active') {
+      resetStuckUploads();
+      SyncManager.kick();
+    }
+  });
+  
+  return () => subscription.remove();
+}, [user?.token]);
+
+  if (!isAppReady) {
+    return <SplashScreen />;
+  }
 
   return (
-    <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <StatusBar backgroundColor="#1181B2" barStyle="light-content" />
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#1181B2' }} edges={['top']}>
+
+        <RootNavigator />
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
-}
-
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
-
-  return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
+};
 
 export default App;
