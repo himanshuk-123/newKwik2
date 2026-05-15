@@ -40,6 +40,7 @@ export const saveDashboard = async (userId: string, record: DashboardRecord): Pr
 /** API call + DB save ek saath — syncService sirf yahi call karega */
 export const fetchAndSaveDashboard = async (token: string, userId: string): Promise<void> => {
   const res = await dashboardApi(token);
+  console.log('[DASHBOARD] API response:', res);
   if (res.Error !== '0' || !res.DataRecord?.length) return;
   await saveDashboard(userId, res.DataRecord[0]);
   console.log('[DASHBOARD] Fetched & saved.');

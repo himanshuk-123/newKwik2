@@ -109,16 +109,13 @@ useEffect(() => {
     StatusBar.setBackgroundColor('#1181B2');
   };
 }, []);
-  useEffect(() => {
-    if (useFrontCamera) {
-      Orientation.lockToPortrait();
-    } else {
-      Orientation.lockToLandscapeLeft();
-    }
-    return () => {
-      Orientation.lockToPortrait();
-    };
-  }, [useFrontCamera]);
+useEffect(() => {
+  Orientation.lockToLandscapeLeft();
+
+  return () => {
+    Orientation.lockToPortrait();
+  };
+}, []);
 
   // ── Permission check ────────────────────────────────────────────────────────
 
@@ -146,10 +143,9 @@ useEffect(() => {
         
       });
 
-      // Preview mode ON — portrait lock BEFORE showing preview
-      // so screen is already portrait when user presses Proceed → no glitch
+      // Preview mode ON — keep the screen in landscape for image review.
       if (!useFrontCamera) {
-        Orientation.lockToPortrait();
+        Orientation.lockToLandscapeLeft();
       }
       setPreviewUri(`file://${photo.path}`);
 
@@ -171,7 +167,7 @@ useEffect(() => {
               enableShutterSound: false,
             });
             if (!useFrontCamera) {
-              Orientation.lockToPortrait();
+              Orientation.lockToLandscapeLeft();
             }
             setPreviewUri(`file://${retryPhoto.path}`);
             setIsCapturing(false);
@@ -399,18 +395,22 @@ const styles = StyleSheet.create({
   },
 
   // ── Shutter ─────────────────────────────────────────────────────────────────
-  captureBtn: {
-    position: 'absolute',
-    bottom: 40,
-    alignSelf: 'center',
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    borderWidth: 4,
-    borderColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+captureBtn: {
+  position: 'absolute',
+
+  // ✅ Portrait center position
+  right: 25,
+  top: '50%',
+  transform: [{ translateY: -38 }],
+
+  width: 76,
+  height: 76,
+  borderRadius: 38,
+  borderWidth: 4,
+  borderColor: '#fff',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
   captureInner: {
     width: 56,
     height: 56,

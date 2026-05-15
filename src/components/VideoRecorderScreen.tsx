@@ -7,6 +7,8 @@ import {
   ActivityIndicator,
   ToastAndroid,
   StatusBar,
+  NativeModules,
+  Platform,
 } from 'react-native';
 import {
   Camera,
@@ -57,6 +59,9 @@ const VideoRecorderScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { id: leadId, side } = route.params as RouteParams;
+  const keepAwakeModule = NativeModules.KeepAwake as
+    | { enable: () => void; disable: () => void }
+    | undefined;
 
   const cameraRef = useRef<Camera>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -72,24 +77,43 @@ const VideoRecorderScreen = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(RECORDING_DURATION);
   const [isSaving, setIsSaving] = useState(false);
-  const [savingLabel, setSavingLabel] = useState('Saving...');  // ✅ NEW: granular status
-  const [compressionProgress, setCompressionProgress] = useState(0); // ✅ NEW: 0–1
+  const [_savingLabel, setSavingLabel] = useState('Saving...');  // ✅ NEW: granular status
+  const [_compressionProgress, setCompressionProgress] = useState(0); // ✅ NEW: 0–1
   const [torch, setTorch] = useState<'off' | 'on'>('off');
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [pendingVideoPath, setPendingVideoPath] = useState<string | null>(null);
 
   const { markLocalCaptured } = useValuationStore();
 
+  const setScreenAwake = useCallback((enabled: boolean) => {
+    if (Platform.OS !== 'android') return;
+
+    if (enabled) {
+      keepAwakeModule?.enable();
+    } else {
+      keepAwakeModule?.disable();
+    }
+  }, [keepAwakeModule]);
+
   // ── Orientation + StatusBar ──────────────────────────────────────────────
 
   useEffect(() => {
     Orientation.lockToLandscapeLeft();
+    setScreenAwake(false);
     return () => {
       Orientation.lockToPortrait();
       if (timerRef.current) clearInterval(timerRef.current);
+      setScreenAwake(false);
     };
-  }, []);
+  }, [setScreenAwake]);
 
+  useEffect(() => {
+  if (isRecording || isSaving || Boolean(previewUri)) {
+    setScreenAwake(true);
+  } else {
+    setScreenAwake(false);
+  }
+}, [isRecording, isSaving, previewUri, setScreenAwake]);
   useEffect(() => {
     StatusBar.setHidden(true);
     StatusBar.setTranslucent(true);
@@ -116,9 +140,8 @@ const VideoRecorderScreen = () => {
 
   const handleRecordingFinished = useCallback(
     async (videoFile: { path: string; duration: number }) => {
-      if (isSaving) return;
-      setIsSaving(true);
-      recordingRef.current = false;
+      // Don't block UI — run compression + save in background and let user continue.
+      if (recordingRef.current) recordingRef.current = false;
       setIsRecording(false);
 
       const rawUri = `file://${videoFile.path}`;
@@ -126,51 +149,64 @@ const VideoRecorderScreen = () => {
         `[VideoRecorder] 🎬 Raw recording done: ${videoFile.duration?.toFixed(1)}s — ${videoFile.path}`,
       );
 
-      try {
-        // ── STEP 1: Compress ──────────────────────────────────────────────
-        setSavingLabel('Compressing video...');
-        setCompressionProgress(0);
+      ToastAndroid.show('Video saving in background', ToastAndroid.SHORT);
 
-        const compressedUri = await VideoCompressor.compress(
-          rawUri,
-          {
-            compressionMethod: 'manual',
-            bitrate: 900_000,       // 900 kbps — same as WhatsApp (700–900 kbps)
-            maxSize: 960,           // longest side max px (keeps 480p output)
-            minimumFileSizeForCompress: 5, // skip if already < 5 MB (safety)
-          },
-          (progress) => {
-            // progress is 0–1
-            setCompressionProgress(progress);
-          },
-        );
+      (async () => {
+        try {
+          // update compression progress state for telemetry (UI not blocked)
+          setCompressionProgress(0);
 
-        console.log(`[VideoRecorder] ✅ Compressed: ${compressedUri}`);
+          const compressedUri = await VideoCompressor.compress(
+            rawUri,
+            {
+              compressionMethod: 'manual',
+              bitrate: 900_000,
+              maxSize: 960,
+              minimumFileSizeForCompress: 5,
+            },
+            (progress) => {
+              setCompressionProgress(progress);
+            },
+          );
 
-        // ── STEP 2: Save compressed file permanently ──────────────────────
-        setSavingLabel('Saving video...');
+          console.log(`[VideoRecorder] ✅ Compressed: ${compressedUri}`);
 
-        const localPath = await saveVideoLocally({
-          leadId,
-          side,
-          tempUri: compressedUri, // ✅ save COMPRESSED file, not raw
-        });
+          const localPath = await saveVideoLocally({ leadId, side, tempUri: compressedUri });
 
-        // ── STEP 3: Show preview ──────────────────────────────────────────
-        setPendingVideoPath(localPath);
-        setPreviewUri(localPath);
-        setIsSaving(false);
-        setCompressionProgress(0);
-        ToastAndroid.show('Preview ready. Check and tap Use Video.', ToastAndroid.SHORT);
-      } catch (e: any) {
-        console.error('[VideoRecorder] Compress/Save failed:', e);
-        ToastAndroid.show('Failed to save video. Try again.', ToastAndroid.LONG);
-        setIsSaving(false);
-        setCompressionProgress(0);
-        setIsRecording(false);
-      }
+          // Persist capture record immediately so SyncManager can upload.
+          try {
+            const geo = await getLocationAsync();
+            await saveImageCapture({
+              leadId,
+              side,
+              appColumn: 'Video1',
+              localPath,
+              mediaType: 'video',
+              latitude: geo.lat,
+              longitude: geo.long,
+              capturedAt: geo.timeStamp,
+            });
+          } catch (dbErr) {
+            console.warn('[VideoRecorder] Failed to save capture record:', dbErr);
+          }
+
+          markLocalCaptured(side, localPath);
+          await SyncManager.refreshPendingCount();
+          SyncManager.kick().catch(() => {});
+
+          setCompressionProgress(0);
+          console.log('[VideoRecorder] Background save complete:', localPath);
+          ToastAndroid.show('Video saved and queued for upload.', ToastAndroid.SHORT);
+        } catch (e: any) {
+          console.error('[VideoRecorder] Background compress/save failed:', e);
+          setCompressionProgress(0);
+          ToastAndroid.show('Failed to save video in background.', ToastAndroid.LONG);
+        }
+      })();
+      // Return to previous screen immediately so user can continue.
+      navigation.goBack();
     },
-    [isSaving, leadId, side],
+    [leadId, side, markLocalCaptured, navigation],
   );
 
   // ── Confirm (Use Video) ──────────────────────────────────────────────────
@@ -196,7 +232,7 @@ const VideoRecorderScreen = () => {
 
       markLocalCaptured(side, pendingVideoPath);
       await SyncManager.refreshPendingCount();
-      void SyncManager.kick();
+      SyncManager.kick().catch(() => {});
 
       ToastAndroid.show('Video confirmed and queued for upload.', ToastAndroid.SHORT);
       setPreviewUri(null);
@@ -310,32 +346,6 @@ const VideoRecorderScreen = () => {
     );
   }
 
-  // ── ✅ IMPROVED Saving screen — shows compression progress ───────────────
-
-  if (isSaving) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#FF4444" />
-        <Text style={styles.savingText}>{savingLabel}</Text>
-
-        {/* Show compression bar only while compressing */}
-        {compressionProgress > 0 && compressionProgress < 1 && (
-          <View style={styles.progressBarContainer}>
-            <View style={[styles.progressBarFill, { width: `${Math.round(compressionProgress * 100)}%` }]} />
-          </View>
-        )}
-        {compressionProgress > 0 && compressionProgress < 1 && (
-          <Text style={styles.savingSubtext}>
-            {Math.round(compressionProgress * 100)}%
-          </Text>
-        )}
-        {compressionProgress === 0 && (
-          <Text style={styles.savingSubtext}>Please wait</Text>
-        )}
-      </View>
-    );
-  }
-
   // ── Preview screen ───────────────────────────────────────────────────────
 
   if (previewUri) {
@@ -361,6 +371,28 @@ const VideoRecorderScreen = () => {
           <TouchableOpacity style={styles.permissionBtn} onPress={handleUseVideo}>
             <Text style={styles.permissionBtnText}>Proceed</Text>
           </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  if (isSaving) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.savingText}>{_savingLabel}</Text>
+          <Text style={styles.savingSubtext}>
+            {Math.round(_compressionProgress * 100)}% complete
+          </Text>
+          <View style={styles.progressBarContainer}>
+            <View
+              style={[
+                styles.progressBarFill,
+                { width: `${Math.max(0, Math.min(100, _compressionProgress * 100))}%` },
+              ]}
+            />
+          </View>
         </View>
       </View>
     );
@@ -397,7 +429,7 @@ const VideoRecorderScreen = () => {
 
       {isRecording && renderCountdown()}
 
-      {!isRecording && (
+      {!isRecording && !isSaving && (
         <View style={styles.startOverlay}>
           <View style={styles.instructionContainer}>
             <MaterialCommunityIcons name="information-outline" size={20} color="#fff" />
@@ -438,6 +470,14 @@ const styles = StyleSheet.create({
 
   savingText: { color: '#fff', fontSize: 18, fontWeight: '600' },
   savingSubtext: { color: 'rgba(255,255,255,0.6)', fontSize: 14 },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    paddingHorizontal: 24,
+    gap: 14,
+  },
 
   // ✅ NEW: compression progress bar
   progressBarContainer: {

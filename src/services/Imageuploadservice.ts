@@ -66,9 +66,18 @@ const uploadImageApi = async (
     : image.app_column;
 
   const stat = await RNFS.stat(filePath);
+  if (Number(stat.size) > 500 * 1024) {
+  throw new Error('Image too large. Must be under 500KB');
+}
+  
   const sizeMB = (Number(stat.size) / 1024 / 1024).toFixed(2);
   const fileName = image.local_path.split('/').pop() || `${imageField}.jpg`;
 
+  console.log('📁 FILE PATH:', filePath);
+console.log('📦 FILE SIZE BYTES:', stat.size);
+console.log('📦 FILE SIZE KB:', (Number(stat.size) / 1024).toFixed(2));
+console.log('📦 FILE SIZE MB:', (Number(stat.size) / 1024 / 1024).toFixed(2));
+console.log('📄 FILE NAME:', fileName);
     console.log(`
 [📸 Upload Image] Lead: ${image.lead_id}, Side: ${image.side}
   - app_column (DB): "${image.app_column}"
@@ -76,9 +85,7 @@ const uploadImageApi = async (
   - File size: ${sizeMB} MB
   - Endpoint: /DocumentUploadOtherImage (multipart)
   - FileName :${fileName}
-  -Stat Size: ${stat.size}
   -localPath: ${image.local_path}
-  -Stat: ${JSON.stringify(stat)}
   `);
   const formData = new FormData();
   formData.append('LeadId', image.lead_id);
@@ -95,6 +102,7 @@ const uploadImageApi = async (
     name: fileName,
   } as any);
   formData.append(imageField, fileName);
+  // formData.append(image.app_column, fileName);
 
 
 
@@ -274,13 +282,11 @@ const uploadVideoApi = async (
   formData.append('LeadId', image.lead_id);
   formData.append('TokenID', token);
   formData.append('Version', '2');
-formData.append('Video1', {
-  uri: image.local_path.startsWith('file://') 
-       ? image.local_path 
-       : `file://${image.local_path}`,  // ensure file:// prefix
-  type: 'video/mp4',
-  name: 'Video.mp4',
-} as any);
+  formData.append('Video1', {
+    uri: image.local_path,
+    type: 'video/mp4',
+    name: 'Video.mp4',
+  } as any);
 
   try {
     const response = await axios.post(`${BASE_URL}/DocumentUploadVideo`, formData, {
@@ -291,8 +297,8 @@ formData.append('Video1', {
         'Version': '2',
       },
       timeout: 180000,              // 3 min — large video upload ko time chahiye
-      maxBodyLength: Infinity,
-      maxContentLength: Infinity,
+maxBodyLength: 2 * 1024 * 1024,
+maxContentLength: 2 * 1024 * 1024,
     });
 
     console.log('[API] 📥 VIDEO RESPONSE:', response.status, response.data);

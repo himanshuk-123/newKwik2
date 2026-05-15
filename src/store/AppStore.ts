@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { StoredUser, login, logout, getStoredUser } from '../services/AuthService';
-import { getDashboard } from '../services/DashboardService';
+import { fetchAndSaveDashboard, getDashboard } from '../services/DashboardService';
 import { SyncManager } from '../services/Syncmanager';
 import { DashboardRecord, LoginRequest } from '../types/api';
 import { useValuationStore } from './valuation.store';
@@ -19,12 +19,18 @@ interface AppState {
   // Dashboard
   dashboard: DashboardRecord | null;
   dashboardLoading: boolean;
+  myTaskNeedsRefresh: boolean;
+  hiddenMyTaskLeadIds: string[];
 
   // Actions
   loadStoredUser: () => Promise<void>;
   loginUser: (credentials: LoginRequest) => Promise<void>;
   logoutUser: () => Promise<void>;
   fetchDashboard: () => Promise<void>;
+  markMyTaskNeedsRefresh: () => void;
+  consumeMyTaskNeedsRefresh: () => boolean;
+  hideLeadFromMyTask: (leadId: string) => void;
+  clearHiddenMyTaskLead: (leadId: string) => void;
   clearError: () => void;
 }
 
@@ -38,8 +44,36 @@ export const useAppStore = create<AppState>((set, get) => ({
   error: null,
   dashboard: null,
   dashboardLoading: false,
+  myTaskNeedsRefresh: false,
+  hiddenMyTaskLeadIds: [],
 
   clearError: () => set({ error: null }),
+
+  markMyTaskNeedsRefresh: () => set({ myTaskNeedsRefresh: true }),
+
+  consumeMyTaskNeedsRefresh: () => {
+    const { myTaskNeedsRefresh } = get();
+    if (myTaskNeedsRefresh) {
+      set({ myTaskNeedsRefresh: false });
+    }
+    return myTaskNeedsRefresh;
+  },
+
+  hideLeadFromMyTask: (leadId: string) => {
+    if (!leadId) return;
+    set(state => ({
+      hiddenMyTaskLeadIds: state.hiddenMyTaskLeadIds.includes(leadId)
+        ? state.hiddenMyTaskLeadIds
+        : [...state.hiddenMyTaskLeadIds, leadId],
+    }));
+  },
+
+  clearHiddenMyTaskLead: (leadId: string) => {
+    if (!leadId) return;
+    set(state => ({
+      hiddenMyTaskLeadIds: state.hiddenMyTaskLeadIds.filter(id => id !== leadId),
+    }));
+  },
 
   /** App start par — DB mein user hai ya nahi check karo */
   loadStoredUser: async () => {
@@ -122,11 +156,22 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ dashboardLoading: true,error:null });
 
     try {
+      if (user?.token) {
+        await fetchAndSaveDashboard(user.token, String(userId));
+      } else {
+        console.warn('[STORE] No token found for dashboard refresh — reading cached data only');
+      }
+    } catch (e: any) {
+      console.error('[STORE] Dashboard API refresh failed:', e);
+      set({ error: e.message ?? 'Dashboard refresh failed' });
+    }
+
+    try {
       const data = await getDashboard(String(userId));
       console.log('[STORE] getDashboard returned:', JSON.stringify(data));
       set({ dashboard: data, dashboardLoading: false });
     } catch (e: any) {
-      console.error('[STORE] fetchDashboard error:', e);
+      console.error('[STORE] Local dashboard read failed:', e);
       set({ error: e.message ?? 'Dashboard fetch failed', dashboardLoading: false });
     }
   },

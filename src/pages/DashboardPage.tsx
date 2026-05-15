@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useEffect, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   StyleSheet,
   View,
@@ -93,7 +93,6 @@ const Dashboard = () => {
     useAppStore();
 
   const [refreshing, setRefreshing] = useState(false);
-  const [hasRefreshedOnce, setHasRefreshedOnce] = useState(false);
   const [valuatingCount, setValuatingCount] = useState(0);
 
   // Count of leads with image captures (active valuations)
@@ -106,14 +105,6 @@ const Dashboard = () => {
     } catch { setValuatingCount(0); }
   }, []);
 
-  // 1. Initial Fetch on Mount
-  useEffect(() => {
-    if (!hasRefreshedOnce && user) {
-      fetchDashboard();
-      setHasRefreshedOnce(true);
-    }
-  }, [fetchDashboard, hasRefreshedOnce, user]);
-
   // 2. Pull Request Handler — always force refresh
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -121,24 +112,26 @@ const Dashboard = () => {
     setRefreshing(false);
   }, [fetchDashboard, loadValuatingCount]);
 
-  // 3. Refresh dashboard when screen comes into focus (e.g. Create Lead se back)
-useFocusEffect(
-  useCallback(() => {
-    loadValuatingCount();  // ← No API, no flicker
-  }, [loadValuatingCount])
-);
+  // 3. Refresh dashboard when screen comes into focus (including after Create Lead)
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
 
-useEffect(() => {
-  const unsubscribe = navigation.addListener('focus', () => {
-    const state = navigation.getState();
-    const previousRoute = state?.routes?.[state.index - 1]?.name;
+      let isActive = true;
 
-    if (previousRoute === 'CreateLeads') {
-      fetchDashboard();
-    }
-  });
-  return unsubscribe;
-}, [navigation, fetchDashboard]);
+      const refresh = async () => {
+        await Promise.all([fetchDashboard(), loadValuatingCount()]);
+      };
+
+      if (isActive) {
+        refresh();
+      }
+
+      return () => {
+        isActive = false;
+      };
+    }, [fetchDashboard, loadValuatingCount, user])
+  );
 
   // Safe data extraction
   const assigned = dashboard?.Assignedlead ?? 0;

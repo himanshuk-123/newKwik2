@@ -20,10 +20,9 @@ import {
   SafeAreaView,
 } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
-import NetInfo from "@react-native-community/netinfo";
+import NetInfo from '@react-native-community/netinfo';
 import { useAppStore } from "../store/AppStore";
-
-// ── Offline-first service ──
+import { getLeadsByStatus, fetchAndSaveLeadsByStatus } from '../services/LeadService';
 import {
   getDropdowns,
   submitVehicleDetails,
@@ -163,7 +162,7 @@ const VehicleDetails = ({ route }: { route: any }) => {
   const { carId, leadData, vehicleType, optionalInfoAnswers } = route.params || { carId: "KWC12345" };
   useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { user } = useAppStore();
+  const { user, markMyTaskNeedsRefresh, hideLeadFromMyTask } = useAppStore();
   const token = user?.token || "";
 
   // Use actual registration number from leadData
@@ -589,8 +588,51 @@ const setParam = (param: CarDataKeys, data: string) => {
 
       if (result.success) {
         ToastAndroid.show(result.message, ToastAndroid.LONG);
-        // Vehicle details queue mein gaya, ab SyncManager ko bolo upload karo
+        // Vehicle details queued — kick SyncManager to start sync
         SyncManager.kick();
+
+        // Immediately hide this lead from MyTask locally so user doesn't see a stale entry.
+        hideLeadFromMyTask(currentLeadId);
+        markMyTaskNeedsRefresh();
+
+        // If offline, don't wait for server confirmation — navigate back immediately.
+        if (!isOnline) {
+          ToastAndroid.show('Queued for upload — will sync when online', ToastAndroid.LONG);
+          navigation.pop(2);
+          return;
+        }
+
+        // Online: try polling server for up to ~20s to get server-confirmed state.
+        const maxAttempts = 10;
+        const delayMs = 2000;
+        let refreshed = false;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          try {
+            // Ask server and save into local DB
+            if (token) {
+              await fetchAndSaveLeadsByStatus(token, 'AssignedLeads');
+            }
+
+            // Read local DB to see if lead is still in AssignedLeads
+            const rows = await getLeadsByStatus('AssignedLeads');
+            const exists = Array.isArray(rows) && rows.some((r: any) => String(r.id) === String(currentLeadId));
+            if (!exists) {
+              refreshed = true;
+              break;
+            }
+          } catch (err) {
+            console.warn('[VehicleDetails] Refresh attempt failed:', err);
+          }
+
+          // Wait before next attempt
+          await new Promise(resolve => setTimeout(() => resolve(undefined), delayMs));
+        }
+
+        if (!refreshed) {
+          ToastAndroid.show('Saved — may take a moment to reflect in tasks.', ToastAndroid.LONG);
+        }
+
         navigation.pop(2);
       } else {
         ToastAndroid.show(result.message, ToastAndroid.LONG);

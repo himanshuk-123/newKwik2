@@ -84,7 +84,7 @@ const MyTasksPage = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const searchRef = useRef<any>(null);
-  const { user } = useAppStore();
+  const { user, consumeMyTaskNeedsRefresh, hiddenMyTaskLeadIds, clearHiddenMyTaskLead } = useAppStore();
 
   const [allLeads, setAllLeads] = useState<LeadFromDB[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -92,6 +92,32 @@ const MyTasksPage = () => {
   const [searchText, setSearchText] = useState('');
 
   const [selectedVehicleType, setSelectedVehicleType] = useState('2W');
+
+  const loadLeadsFromDB = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const rows = await getLeadsByStatus('AssignedLeads') as LeadFromDB[];
+      const hiddenIds = new Set(hiddenMyTaskLeadIds);
+      const visibleRows = rows.filter(row => !hiddenIds.has(String(row.id)) && !hiddenIds.has(String(row.lead_id)));
+
+      setAllLeads(visibleRows);
+
+      // Clear hidden ids once they are no longer present in the refreshed DB result
+      hiddenMyTaskLeadIds.forEach(id => {
+        const stillExists = rows.some(row => String(row.id) === id || String(row.lead_id) === id);
+        if (!stillExists) {
+          clearHiddenMyTaskLead(id);
+        }
+      });
+
+      console.log('[MyTasks] Leads from DB:', visibleRows.length, '(raw:', rows.length, ')');
+    } catch (e) {
+      console.error('[MyTasks] loadLeadsFromDB error:', e);
+      ToastAndroid.show('Failed to load tasks', ToastAndroid.SHORT);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [clearHiddenMyTaskLead, hiddenMyTaskLeadIds]);
 
   // ── On focus: API only when opened from Dashboard; otherwise cached DB ────
   const loadLeadsOnScreenFocus = useCallback(async (shouldFetchFromApi: boolean) => {
@@ -117,18 +143,19 @@ const MyTasksPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.token]);
+  }, [loadLeadsFromDB, user?.token]);
 
   useFocusEffect(
     useCallback(() => {
       const fromDashboard = Boolean(route?.params?.fromDashboard);
-      loadLeadsOnScreenFocus(fromDashboard);
+      const fromVehicleDetails = consumeMyTaskNeedsRefresh();
+      loadLeadsOnScreenFocus(fromDashboard || fromVehicleDetails);
 
       // One-time trigger: next focus should not auto-hit API unless Dashboard sets it again
       if (fromDashboard) {
         navigation.setParams({ fromDashboard: false });
       }
-    }, [loadLeadsOnScreenFocus, route?.params?.fromDashboard, navigation])
+    }, [consumeMyTaskNeedsRefresh, loadLeadsOnScreenFocus, route?.params?.fromDashboard, navigation])
   );
 
   // ── Pull to Refresh — online hai toh API se fresh data, warna DB se ─────────
@@ -155,21 +182,7 @@ const MyTasksPage = () => {
     } finally {
       setRefreshing(false);
     }
-  }, [user?.token]);
-
-  const loadLeadsFromDB = async () => {
-    try {
-      setIsLoading(true);
-      const rows = await getLeadsByStatus('AssignedLeads') as LeadFromDB[];
-      setAllLeads(rows);
-      console.log('[MyTasks] Leads from DB:', rows.length);
-    } catch (e) {
-      console.error('[MyTasks] loadLeadsFromDB error:', e);
-      ToastAndroid.show('Failed to load tasks', ToastAndroid.SHORT);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [loadLeadsFromDB, user?.token]);
 
 
 

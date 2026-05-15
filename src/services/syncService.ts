@@ -113,6 +113,7 @@ const syncStatesAndCities = async (): Promise<void> => {
 
 const syncDashboard = async (token: string, userId: string): Promise<void> => {
   try {
+    console.log("userid himanshu: ",userId)
     await fetchAndSaveDashboard(token, userId);
     await updateSyncMeta('dashboard');
   } catch (e) {
