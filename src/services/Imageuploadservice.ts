@@ -3,6 +3,23 @@ import axios from 'axios';
 import { getPendingImages, getPendingImagesForLead, markUploading, markUploaded, markFailed, getPendingAnswers, markAnswerSubmitted, CapturedImage } from '../database/imageCaptureDb';
 import { apiCall } from './ApiClient';
 
+// Format timestamp for server: `YYYY-MM-DD HH:mm:ss` (MySQL / common backend DATETIME)
+const formatTimestampForServer = (iso?: string | null) => {
+  try {
+    const d = iso ? new Date(iso) : new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const Y = d.getFullYear();
+    const M = pad(d.getMonth() + 1);
+    const D = pad(d.getDate());
+    const h = pad(d.getHours());
+    const m = pad(d.getMinutes());
+    const s = pad(d.getSeconds());
+    return `${Y}-${M}-${D} ${h}:${m}:${s}`;
+  } catch (e) {
+    return iso ?? new Date().toISOString();
+  }
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
 // API — Axios instance (timeout + maxBody like old expo)
@@ -93,7 +110,7 @@ console.log('📄 FILE NAME:', fileName);
   formData.append('Version', '2');
   formData.append('Latitude', String(image.latitude ?? '0'));
   formData.append('Longitude', String(image.longitude ?? '0'));
-  formData.append('Timestamp', image.captured_at ?? new Date().toISOString());
+  formData.append('Timestamp', formatTimestampForServer(image.captured_at));
 
   // Expo-compatible payload: same key twice (file + filename)
   formData.append(imageField, {
@@ -282,6 +299,7 @@ const uploadVideoApi = async (
   formData.append('LeadId', image.lead_id);
   formData.append('TokenID', token);
   formData.append('Version', '2');
+  formData.append('Timestamp', formatTimestampForServer(image.captured_at));
   formData.append('Video1', {
     uri: image.local_path,
     type: 'video/mp4',

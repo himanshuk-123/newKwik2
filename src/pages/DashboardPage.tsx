@@ -135,7 +135,7 @@ const Dashboard = () => {
 
   // Safe data extraction
   const assigned = dashboard?.Assignedlead ?? 0;
-  const qcHold = dashboard?.QCHold ?? 0;
+  const qcHold = dashboard?.RoConfirmation ?? 0;
   const completed = dashboard?.CompletedLeads ?? 0;
   const totalLeads = assigned + qcHold + completed;
 

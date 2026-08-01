@@ -23,10 +23,10 @@ const LeadsInProgress = () => {
   const loadLeads = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getLeadsByStatus('QCHoldLeads');
+      const data = await getLeadsByStatus('RoConfirmationLeads');
       setLeads(data as StatusLead[]);
     } catch (err) {
-      console.error('[LeadsInProgress] Error loading QCHoldLeads:', err);
+      console.error('[LeadsInProgress] Error loading RoConfirmationLeads:', err);
     } finally {
       setLoading(false);
     }
@@ -43,7 +43,7 @@ const LeadsInProgress = () => {
     try {
       const netState = await NetInfo.fetch();
       if (netState.isConnected && user?.token) {
-        await fetchAndSaveLeadsByStatus(user.token, 'QCHoldLeads');
+        await fetchAndSaveLeadsByStatus(user.token, 'RoConfirmationLeads');
         console.log('[LeadsInProgress] ✅ Refreshed from server');
       } else {
         ToastAndroid.show('Offline — showing cached data', ToastAndroid.SHORT);
@@ -119,6 +119,12 @@ export default LeadsInProgress;
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    backgroundColor: "white",
+  },
+  loaderContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "white",
   },
   pagePadding: {

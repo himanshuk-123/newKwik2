@@ -3,7 +3,7 @@
  * Fix: Duplicate pendingBadge block removed (ek hi baar render ho)
  */
 
-import { StyleSheet, TouchableOpacity, TouchableWithoutFeedback, View, Text, Image } from "react-native";
+import { Alert, Linking, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, View, Text, Image } from "react-native";
 import { HandHoldingImage } from '../assets';
 import { COLORS } from "../constants/Colors";
 // @ts-ignore
@@ -57,6 +57,25 @@ const CardTile = ({ textPrimary, textSecondary }: CardTileProps) => {
 
 const SingleCard = (props: Props) => {
   const isRepoCase = props.data.leadType?.toLowerCase() === "repo";
+  const mobileNumber = props.data.mobileNumber?.trim() || '';
+  const canCall = mobileNumber.length > 0;
+
+  const handleCallPress = async () => {
+    if (!canCall) {
+      Alert.alert('Phone number not available');
+      return;
+    }
+
+    const telUrl = `tel:${mobileNumber}`;
+    const supported = await Linking.canOpenURL(telUrl);
+
+    if (!supported) {
+      Alert.alert('Unable to open dialer', mobileNumber);
+      return;
+    }
+
+    await Linking.openURL(telUrl);
+  };
 
   return (
     <View style={cardTile.card}>
@@ -98,7 +117,13 @@ const SingleCard = (props: Props) => {
 
       <View style={styles.iconContainer}>
         <View style={styles.iconStack}>
-          <TouchableOpacity><Feather name="phone-call" size={24} color={COLORS.AppTheme.primary} /></TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleCallPress}
+            disabled={!canCall}
+            style={!canCall ? styles.iconDisabled : undefined}
+          >
+            <Feather name="phone-call" size={24} color={canCall ? COLORS.AppTheme.primary : '#b0b0b0'} />
+          </TouchableOpacity>
           <TouchableOpacity><Feather name="edit" size={24} color={COLORS.AppTheme.primary} /></TouchableOpacity>
         </View>
       </View>
@@ -131,6 +156,7 @@ const styles = StyleSheet.create({
   topContainer: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", marginRight: 10, paddingHorizontal: 10, paddingVertical: 6 },
   iconContainer: { position: "absolute", top: 12, right: 12 },
   iconStack: { gap: 8 },
+  iconDisabled: { opacity: 0.45 },
   iconTextContainer: { position: "absolute", bottom: 12, left: 12 },
   cashContainer: { justifyContent: "center" },
   cashRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },

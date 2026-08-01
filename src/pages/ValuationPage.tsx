@@ -9,9 +9,8 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
-  Text,
 } from "react-native";
-import { useSafeAreaInsets,SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute, useFocusEffect } from "@react-navigation/native";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { COLORS } from "../constants/Colors";
@@ -65,10 +64,6 @@ interface RouteParams {
   vehicleType: string; // ✅ item.vehicle_type_value — "2W", "4W", "CV" etc
   leadData?: Lead;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// submitLeadReportApi — ApiClient ka apiCall use karta hai (correct BASE_URL)
-// ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ICON MAPPING
@@ -291,6 +286,8 @@ const OptionalInfoModal = ({ open, closeModal, Questions, Answers, onSubmit }: O
 // VALUATE CARD
 // ─────────────────────────────────────────────────────────────────────────────
 
+
+
 const ValuateCard = ({
   text, isDone, id, vehicleType, isClickable, appColumn, isUploading, uploadStatus,
 }: {
@@ -350,7 +347,6 @@ const ValuateCard = ({
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ValuationPage = () => {
-  const insets = useSafeAreaInsets();
   const route = useRoute();
   const navigation = useNavigation();
   const { getSideQuestion } = useQuestions();
@@ -369,7 +365,6 @@ const ValuationPage = () => {
   const [showConditionModal, setShowConditionModal] = useState(false);
   const [currentSideForCondition, setCurrentSideForCondition] = useState("");
   const [currentSideQuestionData, setCurrentSideQuestionData] = useState<AppStepListDataRecord | null>(null);
-  const [sideConditions, setSideConditions] = useState<Record<string, string>>({});
   const [sideUploadStatus, setSideUploadStatus] = useState<Record<string, 'pending' | 'uploaded' | 'failed'>>({});
   const [lastProcessedSide, setLastProcessedSide] = useState("");
   const processedSidesRef = useRef<Record<string, boolean>>({});
@@ -404,7 +399,7 @@ const ValuationPage = () => {
     processedSidesRef.current = {};
     setLastProcessedSide("");
     return () => reset();
-  }, [vehicleType]);
+  }, [vehicleType, leadId, reset]);
 
   // ── Load captured media from DB ───────────────────────────────────────────
 
@@ -484,7 +479,7 @@ const ValuationPage = () => {
     setShowConditionModal(true);
     processedSidesRef.current[lastUpload.side] = true;
     setLastProcessedSide(lastUpload.side);
-  }, [sideUploads?.length, steps, getSideQuestion, vehicleType, lastProcessedSide]);
+  }, [sideUploads, steps, getSideQuestion, vehicleType, lastProcessedSide]);
 
   // ── Metadata update ───────────────────────────────────────────────────────
 
@@ -494,7 +489,7 @@ const ValuationPage = () => {
       .filter(s => {
         const typeMatch = (s.VehicleType || '').toUpperCase() === vehicleType.toUpperCase();
         // Images can be boolean true or string "true" / "True" from API
-        const hasImages = s.Images === true || s.Images === 'true' || s.Images === 'True' || s.Images === 1 as any;
+        const hasImages = s.Images === true || String(s.Images).toLowerCase() === 'true' || Number(s.Images) === 1;
         return typeMatch && hasImages;
       })
       .map(s => s.Name || "");
@@ -513,9 +508,12 @@ const ValuationPage = () => {
       prospectNo: leadData?.prospect_no || '',
       vehicleType: vehicleType || '',
     }).catch(console.error);
-  }, [leadId, clickableImageSides.length, vehicleType]);
+  }, [leadId, clickableImageSides.length, vehicleType, displayId, leadData?.reg_no, leadData?.prospect_no]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
+
+  
+
 
   const getClickedImage = (side: string) => getSideUpload(side)?.localUri || "";
   const isVideoRecorded = () => !!getSideUpload('Video')?.localUri;
@@ -574,7 +572,7 @@ const ValuationPage = () => {
                   onPress={handleVideoNavigation}
                   activeOpacity={0.7}
                 >
-                  <MaterialCommunityIcons name="video-outline" size={28} color={isVideoRecorded() ? "#2E7D32" : COLORS.AppTheme.primary} style={{ marginBottom: 6 }} />
+                  <MaterialCommunityIcons name="video-outline" size={28} color={isVideoRecorded() ? "#2E7D32" : COLORS.AppTheme.primary} style={styles.videoIcon} />
                   <RNText style={styles.videoCardText}>Record Video</RNText>
                 </TouchableOpacity>
 
@@ -637,9 +635,6 @@ const ValuationPage = () => {
             sideName={currentSideForCondition}
             questionsData={currentSideQuestionData}
             onSubmit={async ({ selectedAnswer, odometerReading, keyAvailable, chassisPlate }) => {
-              if (selectedAnswer) {
-                setSideConditions(prev => ({ ...prev, [currentSideForCondition]: selectedAnswer }));
-              }
               setShowConditionModal(false);
 
               const step = steps.find(s => s.Name === currentSideForCondition);
@@ -706,6 +701,7 @@ const styles = StyleSheet.create({
   videoCard: { width: "89%", padding: 15, borderRadius: 10, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3, backgroundColor: "white" },
   videoCardCompleted: { backgroundColor: "#ABEB94" },
   videoCardText: { fontSize: 16, fontWeight: "600", color: COLORS.Dashboard.text.Grey, textAlign: "center" },
+  videoIcon: { marginBottom: 6 },
   cardContainer: { width: "100%", flexDirection: "row", flexWrap: "wrap", gap: 20, justifyContent: "center", alignItems: "center", paddingTop: 20, paddingBottom: 40, paddingHorizontal: 10 },
   card: { width: "40%", minHeight: 120, justifyContent: "center", alignItems: "center", borderRadius: 10, padding: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3 },
   cardImage: { width: "100%", height: 80, borderRadius: 8, marginBottom: 8 },

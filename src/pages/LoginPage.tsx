@@ -87,7 +87,7 @@ return (
             <Text style={[styles.titleLarge, { color: COLORS.AppTheme.primary }]}>C</Text>
             heck
           </Text>
-          <Text style={styles.subtitleText}>{`The raise and price of \tyour wheels`}</Text>
+          <Text style={styles.subtitleText}>{`The rise and price of your wheels`}</Text>
         </View>
 
         {/* Hero Image */}
@@ -129,11 +129,6 @@ return (
               style={styles.inputIconRight}
             />
           </TouchableOpacity>
-        </View>
-
-        {/* Forgot Password */}
-        <View style={styles.forgotPasswordContainer}>
-          <Text style={styles.forgotPasswordText}>Forgot Password ?</Text>
         </View>
 
         {/* Login Button */}

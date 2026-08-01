@@ -13,6 +13,7 @@ export const getCapturedMediaByLeadId = async (leadId: string): Promise<any[]> =
       side: img.side,
       localUri: img.local_path,
       uploadStatus: img.upload_status,
+      capturedAt: img.captured_at, // ISO timestamp, may be null
     }));
     
     console.log('[ValuationProgress] Found captured images:', {
