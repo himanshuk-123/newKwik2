@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-native-worklets/android/CMakeLists.txt b/node_modules/react-native-worklets/android/CMakeLists.txt
+index e99a842..15b57d6 100644
+--- a/node_modules/react-native-worklets/android/CMakeLists.txt
++++ b/node_modules/react-native-worklets/android/CMakeLists.txt
+@@ -106,7 +106,7 @@ if(${JS_RUNTIME} STREQUAL "hermes")
+     target_link_libraries(worklets hermes-engine::libhermes)
+   endif()
+ 
+-  if(${HERMES_ENABLE_DEBUGGER})
++  if(FALSE)
+     string(APPEND CMAKE_CXX_FLAGS " -DHERMES_ENABLE_DEBUGGER=1")
+ 
+     target_link_libraries(worklets ReactAndroid::hermestooling)
