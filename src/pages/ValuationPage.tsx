@@ -24,6 +24,7 @@ import { getCapturedMediaByLeadId, setTotalCount, updateLeadMetadata } from "../
 import { saveQuestionnaireAnswer } from "../database/imageCaptureDb";
 import useQuestions from "../services/useQuestions";
 import { resolveAppColumn } from "../constants/DocumentUploadMapping";
+import { getVehicleCardImage } from "../assets/vehicleImages";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -297,6 +298,7 @@ const ValuateCard = ({
 }) => {
   const navigation = useNavigation();
   const icon = getCardIcon(text);
+  const customImage = getVehicleCardImage(text, vehicleType);
 
   const handleClick = () => {
     if (!isClickable && !isDone) {
@@ -334,6 +336,8 @@ const ValuateCard = ({
           <MaterialCommunityIcons name="check-circle" size={48} color="#4CAF50" />
           <RNText style={styles.capturedText}>Captured</RNText>
         </View>
+      ) : customImage ? (
+        <Image source={customImage} style={styles.customCardIcon} resizeMode="contain" />
       ) : (
         <MaterialCommunityIcons name={icon.name} size={40} color={icon.color} style={styles.cardIcon} />
       )}
@@ -409,25 +413,21 @@ const ValuationPage = () => {
       const captured = await getCapturedMediaByLeadId(leadId.toString());
       if (!captured.length) return;
 
-      // Pre-mark ALL as processed to prevent stale modals
-      // for (const item of captured) {
-      //   if (item.side) processedSidesRef.current[item.side] = true;
-      // }
-
       const statusMap: Record<string, 'pending' | 'uploaded' | 'failed'> = {};
-      for (const item of captured) {
-        if (!item.side || !item.localUri) continue;
-        const filePath = item.localUri.replace('file://', '');
-        const fileExists = await RNFS.exists(filePath);
-        if (fileExists) {
-          markLocalCaptured(item.side, item.localUri);
-          statusMap[item.side] = item.uploadStatus;
-              if (item.uploadStatus === 'uploaded' ||
-        item.uploadStatus === 'failed') {
-      processedSidesRef.current[item.side] = true;
-    }
-        }
-      }
+      await Promise.all(
+        captured.map(async (item) => {
+          if (!item.side || !item.localUri) return;
+          const filePath = item.localUri.replace('file://', '');
+          const fileExists = await RNFS.exists(filePath);
+          if (fileExists) {
+            markLocalCaptured(item.side, item.localUri);
+            statusMap[item.side] = item.uploadStatus;
+            if (item.uploadStatus === 'uploaded' || item.uploadStatus === 'failed') {
+              processedSidesRef.current[item.side] = true;
+            }
+          }
+        })
+      );
       setSideUploadStatus(statusMap);
     } catch (e) {
       console.error('[ValuationPage] loadCapturedMedia failed:', e);
@@ -435,13 +435,6 @@ const ValuationPage = () => {
   }, [leadId, markLocalCaptured]);
 
   useFocusEffect(useCallback(() => { loadCapturedMedia(); }, [loadCapturedMedia]));
-
-  // ── Upload queue subscription ─────────────────────────────────────────────
-
-  useEffect(() => {
-    const unsubscribe = uploadQueueManager.subscribe(() => {});
-    return unsubscribe;
-  }, []);
 
   // ── Watch for new captures → show condition modal ─────────────────────────
 
@@ -510,13 +503,23 @@ const ValuationPage = () => {
     }).catch(console.error);
   }, [leadId, clickableImageSides.length, vehicleType, displayId, leadData?.reg_no, leadData?.prospect_no]);
 
+  // ── Upload queue subscription ─────────────────────────────────────────────
+
+  useEffect(() => {
+    const unsubscribe = uploadQueueManager.subscribe(() => {
+      loadCapturedMedia();
+    });
+    return unsubscribe;
+  }, [loadCapturedMedia]);
+
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  
-
-
   const getClickedImage = (side: string) => getSideUpload(side)?.localUri || "";
-  const isVideoRecorded = () => !!getSideUpload('Video')?.localUri;
+  const isVideoRecorded = () => {
+    const videoUri = getSideUpload('Video')?.localUri;
+    const videoStatus = sideUploadStatus['Video'];
+    return !!videoUri || !!videoStatus;
+  };
   const isAllImagesCaptured = () => clickableImageSides.length > 0 && clickableImageSides.every(s => !!getClickedImage(s));
 
   const handleNextClick = () => {
@@ -525,10 +528,10 @@ const ValuationPage = () => {
       return;
     }
 
-      // ✅ Video warning — block nahi karo
-  if (!isVideoRecorded()) {
-    ToastAndroid.show("Video not recorded. You can continue but it's recommended.", ToastAndroid.LONG);
-  }
+    // ✅ Video warning — show ONLY if video was NOT recorded
+    if (!isVideoRecorded()) {
+      ToastAndroid.show("Video not recorded. You can continue but it's recommended.", ToastAndroid.LONG);
+    }
     // @ts-ignore
     navigation.navigate("VehicleDetails", { carId: leadId, leadData, vehicleType, optionalInfoAnswers: optionalInfoQuestionAnswer });
   };
@@ -542,6 +545,29 @@ const ValuationPage = () => {
       vehicleType,
     });
   };
+
+  // ── Video Card State Logic ───────────────────────────────────────────────
+  const videoStatus = sideUploadStatus['Video'];
+  const hasVideo = isVideoRecorded();
+  const isVideoUploaded = videoStatus === 'uploaded';
+  const isVideoUploading = hasVideo && !isVideoUploaded;
+
+  let videoCardBg = "white";
+  let videoIconColor = COLORS.AppTheme.primary;
+  let videoCardText = "Record Video";
+  let videoIconName = "video-outline";
+
+  if (isVideoUploaded) {
+    videoCardBg = "#ABEB94"; // Green when upload complete
+    videoIconColor = "#2E7D32";
+    videoCardText = "Video Recorded";
+    videoIconName = "check-circle";
+  } else if (isVideoUploading) {
+    videoCardBg = "#FEF08A"; // Yellow when uploading / pending
+    videoIconColor = "#B45309"; // Dark Amber
+    videoCardText = "Uploading Video...";
+    videoIconName = "cloud-upload-outline";
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
@@ -568,12 +594,12 @@ const ValuationPage = () => {
               {/* VIDEO */}
               <View style={styles.videoContainer}>
                 <TouchableOpacity
-                  style={[styles.videoCard, isVideoRecorded() && styles.videoCardCompleted]}
+                  style={[styles.videoCard, { backgroundColor: videoCardBg }]}
                   onPress={handleVideoNavigation}
                   activeOpacity={0.7}
                 >
-                  <MaterialCommunityIcons name="video-outline" size={28} color={isVideoRecorded() ? "#2E7D32" : COLORS.AppTheme.primary} style={styles.videoIcon} />
-                  <RNText style={styles.videoCardText}>Record Video</RNText>
+                  <MaterialCommunityIcons name={videoIconName} size={28} color={videoIconColor} style={styles.videoIcon} />
+                  <RNText style={[styles.videoCardText, isVideoUploading && { color: "#92400E" }]}>{videoCardText}</RNText>
                 </TouchableOpacity>
 
               </View>
@@ -706,6 +732,7 @@ const styles = StyleSheet.create({
   card: { width: "40%", minHeight: 120, justifyContent: "center", alignItems: "center", borderRadius: 10, padding: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3 },
   cardImage: { width: "100%", height: 80, borderRadius: 8, marginBottom: 8 },
   cardIcon: { marginBottom: 8 },
+  customCardIcon: { width: 56, height: 56, marginBottom: 8 },
   cardDisabled: { opacity: 0.5 },
   uploadingText: { fontSize: 16, color: "#0E4DEF", textAlign: "center", paddingVertical: 20 },
   cardText: { textAlign: "center", fontSize: 14, fontWeight: "600", color: COLORS.Dashboard.text.Grey },

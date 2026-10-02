@@ -1,2 +1,2 @@
-// Re-export from store
-export type { AppStepListDataRecord } from '../../store/valuation.store';
+// Re-export from services
+export type { AppStepListDataRecord } from '../services/types';
