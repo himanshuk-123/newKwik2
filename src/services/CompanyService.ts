@@ -22,7 +22,7 @@ export const saveCompanies = async (token: string): Promise<number> => {
 
   await run('DELETE FROM companies');
   await runBatch(
-    'INSERT OR REPLACE INTO companies (id, name, type_name, state_name, city_name, status) VALUES (?, ?, ?, ?, ?, ?)',
+    'INSERT OR REPLACE INTO co5mpanies (id, name, type_name, state_name, city_name, status) VALUES (?, ?, ?, ?, ?, ?)',
     res.DataRecord.map(c => [
       String(c.id), c.name, c.TypeName ?? '', c.StateName ?? '', c.CityName ?? '', c.Status ?? 'Active',
     ])

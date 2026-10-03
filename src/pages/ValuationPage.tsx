@@ -543,10 +543,10 @@ const ValuationPage = () => {
   };
 
   const handleNextClick = () => {
-    if (!isAllMandatoryCaptured()) {
-      ToastAndroid.show("Please capture all mandatory images first", ToastAndroid.SHORT);
-      return;
-    }
+    // if (!isAllMandatoryCaptured()) {
+    //   ToastAndroid.show("Please capture all mandatory images first", ToastAndroid.SHORT);
+    //   return;
+    // }
 
     // ✅ Video warning — show ONLY if video was NOT recorded
     if (!isVideoRecorded()) {
@@ -630,10 +630,10 @@ const ValuationPage = () => {
                   const isOptional = isOptionalStep(side);
                   const prevMandatorySides = clickableImageSides.slice(0, index).filter(s => !isOptionalStep(s));
                   const isUnlocked = prevMandatorySides.every(prev => !!getClickedImage(prev));
-                  
+
                   // SIMPLE: Find step by name - API should provide appColumn for all steps
                   const matchedStep = steps.find(s => s.Name === side);
-                  
+
                   return (
                     <ValuateCard
                       key={side + index}
@@ -767,7 +767,7 @@ const styles = StyleSheet.create({
   retakeText: { color: '#fff', fontSize: 10, fontWeight: '600' },
   infoRecordContainer: { width: "100%", paddingHorizontal: 25, marginTop: 20 },
   infoRecordTitle: { fontSize: 16, fontWeight: "600", color: COLORS.Dashboard.text.Grey, marginBottom: 12, paddingLeft: 8 },
-  nextBtnContainer: { width: "100%", height: 80, justifyContent: "center", alignItems: "center"},
+  nextBtnContainer: { width: "100%", height: 80, justifyContent: "center", alignItems: "center" },
   nextBtn: { width: "70%", paddingVertical: 14, borderRadius: 10, alignItems: "center" },
   nextBtnEnabled: { backgroundColor: COLORS.Dashboard.text.Grey, opacity: 1 },
   nextBtnDisabled: { backgroundColor: "darkblue", opacity: 0.5 },
