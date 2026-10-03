@@ -21,6 +21,7 @@ import {  CreateLeadPayload } from '../services/ApiClient';
 import { fetchAreasForCity } from '../services/syncService';
 import { useAppStore } from '../store/AppStore';
 import { submitCreateLeadApi } from '../services/CreateLead';
+import { saveOfflineCreatedLead } from '../services/LeadService';
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────────────────────────────────────
@@ -459,12 +460,21 @@ const CreateLeads = () => {
 
     try {
       if (!isOnlineNow) {
-        // ── OFFLINE → pending_leads mein save karo ──
+        // ── OFFLINE → pending_leads AND local status_leads mein save karo ──
         await run(
           "INSERT INTO pending_leads (payload, status, retry_count) VALUES (?, 'pending', 0)",
           [JSON.stringify(payload)]
         );
-        ToastAndroid.show('Offline. Lead saved — will sync when online.', ToastAndroid.LONG);
+        await saveOfflineCreatedLead({
+          payload,
+          companyName: formData.company_name,
+          stateName: formData.state_name,
+          cityName: formData.city_name,
+          areaName: formData.area_name,
+          yardName: formData.yard_name,
+          vehicleTypeName: formData.vehicle_type_name,
+        });
+        ToastAndroid.show('Offline lead created & added to My Tasks.', ToastAndroid.LONG);
         setFormData({ ...INITIAL_FORM });
         navigation.goBack();
         return;
@@ -475,10 +485,19 @@ const CreateLeads = () => {
         ToastAndroid.show('No auth token. Please login again.', ToastAndroid.SHORT);
         return;
       }
-      console.log("Payload of Create Lead: ",payload)
+      console.log("Payload of Create Lead: ", payload);
       const res = await submitCreateLeadApi(user.token, payload);
 
       if (res.ERROR === '0') {
+        await saveOfflineCreatedLead({
+          payload,
+          companyName: formData.company_name,
+          stateName: formData.state_name,
+          cityName: formData.city_name,
+          areaName: formData.area_name,
+          yardName: formData.yard_name,
+          vehicleTypeName: formData.vehicle_type_name,
+        });
         ToastAndroid.show(res.MESSAGE || 'Lead created!', ToastAndroid.LONG);
         setFormData({ ...INITIAL_FORM });
         console.log('[CreateLeads] Lead created online:', res);
@@ -492,11 +511,20 @@ const CreateLeads = () => {
     } catch (e: any) {
       // Network timeout / fetch fail → offline save
       console.error('[CreateLeads] Submit error:', e);
-      ToastAndroid.show('Network error. Lead saved — will sync when online.', ToastAndroid.LONG);
       await run(
         "INSERT INTO pending_leads (payload, status, retry_count) VALUES (?, 'pending', 0)",
         [JSON.stringify(payload)]
       );
+      await saveOfflineCreatedLead({
+        payload,
+        companyName: formData.company_name,
+        stateName: formData.state_name,
+        cityName: formData.city_name,
+        areaName: formData.area_name,
+        yardName: formData.yard_name,
+        vehicleTypeName: formData.vehicle_type_name,
+      });
+      ToastAndroid.show('Network error. Lead saved locally & added to My Tasks.', ToastAndroid.LONG);
       setFormData({ ...INITIAL_FORM });
       navigation.goBack();
     } finally {

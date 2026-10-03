@@ -87,3 +87,22 @@ export const getDashboard = async (userId: string): Promise<DashboardRecord | nu
     return null;
   }
 };
+
+/** Offline lead create hone par local SQLite dashboard mein assigned_lead count +1 karna */
+export const incrementOfflineAssignedLeadCount = async (userId?: string): Promise<void> => {
+  try {
+    const res = await run(
+      `UPDATE dashboard SET assigned_lead = assigned_lead + 1 ${userId ? 'WHERE user_id = ?' : ''}`,
+      userId ? [userId] : []
+    );
+    if (res.rowsAffected === 0 && userId) {
+      await run(
+        `INSERT INTO dashboard (user_id, assigned_lead, synced_at) VALUES (?, 1, CURRENT_TIMESTAMP)`,
+        [userId]
+      );
+    }
+    console.log('[DASHBOARD] 📈 Incremented assigned_lead count locally for offline lead');
+  } catch (e) {
+    console.error('[DASHBOARD] Failed to increment assigned_lead count:', e);
+  }
+};

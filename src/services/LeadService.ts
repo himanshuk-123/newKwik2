@@ -8,6 +8,7 @@ import { run, select, runBatch } from '../database/db';
 import type { LeadListStatuswiseResponse, LeadRecord } from './types';
 import { apiCall, APP_VERSION } from './ApiClient';
 import { LEAD_STATUS_ID_MAP, type LeadStatusType } from '../constants/LeadStats';
+import { incrementOfflineAssignedLeadCount } from './DashboardService';
 
 // ─── API CALL ────────────────────────────────────────────────────────────────
 
@@ -119,8 +120,8 @@ console.log(`Response of ${statusType}: `,res);
     return 0;
   }
 
-  // Pehle iss statusType ka purana data delete karo
-  await run('DELETE FROM status_leads WHERE status_type = ?', [statusType]);
+  // Pehle iss statusType ka purana data delete karo (preserve offline created leads)
+  await run("DELETE FROM status_leads WHERE status_type = ? AND id NOT LIKE 'OFFLINE_%'", [statusType]);
 
   await runBatch(
     STATUS_LEADS_INSERT_SQL,
@@ -128,6 +129,7 @@ console.log(`Response of ${statusType}: `,res);
   );
 
   console.log(`[LEAD] ${statusType}: saved ${res.DataRecord.length}`);
+  await reconcileOfflineLeads();
   return res.DataRecord.length;
 };
 
@@ -145,6 +147,96 @@ export const fetchAndSaveAllStatusLeads = async (token: string): Promise<void> =
     if (r.status === 'fulfilled') total += r.value;
   }
   console.log(`[LEAD] All statuses synced. Total records: ${total}`);
+  await reconcileOfflineLeads();
+};
+
+// ─── SAVE OFFLINE CREATED LEAD TO LOCAL DB ────────────────────────────────────
+
+export interface SaveOfflineLeadParams {
+  payload: any;
+  companyName?: string;
+  stateName?: string;
+  cityName?: string;
+  areaName?: string;
+  yardName?: string;
+  vehicleTypeName?: string;
+}
+
+export const saveOfflineCreatedLead = async (params: SaveOfflineLeadParams): Promise<string> => {
+  const { payload, companyName, stateName, cityName, areaName, yardName, vehicleTypeName } = params;
+  const offlineId = `OFFLINE_${Date.now()}`;
+  const regNoUpper = (payload.RegNo || '').toUpperCase();
+  const prospectUpper = (payload.ProspectNo || '').toUpperCase();
+  const custUpper = (payload.CustomerName || '').toUpperCase();
+  const vehicleTypeVal = (payload.VehicleTypeValue || payload.Vehicle || '2W').toUpperCase();
+
+  const row = [
+    'AssignedLeads',                      // 1. status_type
+    offlineId,                             // 2. id
+    regNoUpper || offlineId,              // 3. lead_uid
+    offlineId,                             // 4. lead_id
+    regNoUpper,                            // 5. reg_no
+    prospectUpper,                         // 6. prospect_no
+    custUpper,                             // 7. customer_name
+    payload.CustomerMobileNo || '',        // 8. customer_mobile
+    String(payload.CompanyId || ''),       // 9. company_id
+    companyName || '',                     // 10. company_name
+    (payload.Vehicle || '').toUpperCase(), // 11. vehicle
+    String(payload.VehicleType || ''),     // 12. vehicle_type_id
+    vehicleTypeName || '',                 // 13. vehicle_type_name
+    vehicleTypeVal,                        // 14. vehicle_type_value ("2W", "3W", etc.)
+    String(payload.StateId || ''),         // 15. state_id
+    stateName || '',                       // 16. state_name
+    String(payload.City || ''),            // 17. city_id
+    cityName || '',                        // 18. city_name
+    String(payload.Area || ''),            // 19. area_id
+    areaName || '',                        // 20. area_name
+    String(payload.ClientCityId || ''),    // 21. client_city_id
+    cityName || '',                        // 22. client_city_name
+    payload.Pincode || '',                 // 23. pincode
+    (payload.ChassisNo || '').toUpperCase(),// 24. chassis_no
+    (payload.EngineNo || '').toUpperCase(), // 25. engine_no
+    '1',                                   // 26. status_id
+    yardName || '',                        // 27. yard_name
+    '', '', '',                            // 28, 29, 30: report_id, view_url, download_url
+    '',                                    // 31. appointment_date
+    new Date().toISOString(),              // 32. added_by_date
+    '', 0, '', 0, '', 0, '',               // 33-39: billing
+    '', '', '', '', '', '', ''             // 40-46: remarks, dates
+  ];
+
+  await run(STATUS_LEADS_INSERT_SQL, row);
+  await incrementOfflineAssignedLeadCount();
+  console.log(`[LEAD] 💾 Saved offline created lead locally to status_leads: ${offlineId} (${regNoUpper})`);
+  return offlineId;
+};
+
+// ─── RECONCILE OFFLINE LEADS AFTER SERVER SYNC ────────────────────────────────
+
+export const reconcileOfflineLeads = async (): Promise<void> => {
+  try {
+    const offlineLeads = await select<{ id: string; reg_no: string }>(
+      "SELECT id, reg_no FROM status_leads WHERE id LIKE 'OFFLINE_%'"
+    );
+    if (!offlineLeads.length) return;
+
+    for (const off of offlineLeads) {
+      if (!off.reg_no) continue;
+      const serverMatch = await select<{ id: string }>(
+        "SELECT id FROM status_leads WHERE reg_no = ? AND id NOT LIKE 'OFFLINE_%' LIMIT 1",
+        [off.reg_no]
+      );
+      if (serverMatch[0]) {
+        const realServerId = serverMatch[0].id;
+        console.log(`[LEAD] 🔄 Reconciling offline lead ${off.id} -> Server ID ${realServerId}`);
+        await run("UPDATE image_captures SET lead_id = ? WHERE lead_id = ?", [realServerId, off.id]);
+        await run("UPDATE pending_vehicle_details SET lead_id = ? WHERE lead_id = ?", [realServerId, off.id]);
+        await run("DELETE FROM status_leads WHERE id = ?", [off.id]);
+      }
+    }
+  } catch (e) {
+    console.error('[LEAD] reconcileOfflineLeads failed:', e);
+  }
 };
 
 // ─── DB GET ──────────────────────────────────────────────────────────────────
@@ -201,6 +293,7 @@ export const syncPendingLeads = async (
 
   // Cleanup synced leads
   await run("DELETE FROM pending_leads WHERE status = 'synced'", []);
+  await reconcileOfflineLeads();
 };
 
 /**

@@ -290,11 +290,12 @@ const OptionalInfoModal = ({ open, closeModal, Questions, Answers, onSubmit }: O
 
 
 const ValuateCard = ({
-  text, isDone, id, vehicleType, isClickable, appColumn, isUploading, uploadStatus,
+  text, isDone, id, vehicleType, isClickable, appColumn, isUploading, uploadStatus, isOptional,
 }: {
   text: string; id: string; vehicleType: string;
   isDone?: string; isClickable?: boolean; appColumn?: string;
   isUploading?: boolean; uploadStatus?: 'pending' | 'uploaded' | 'failed';
+  isOptional?: boolean;
 }) => {
   const navigation = useNavigation();
   const icon = getCardIcon(text);
@@ -514,17 +515,36 @@ const ValuationPage = () => {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  const getClickedImage = (side: string) => getSideUpload(side)?.localUri || "";
+  const getClickedImage = useCallback((side: string) => getSideUpload(side)?.localUri || "", [getSideUpload]);
+
+  const isOptionalStep = useCallback((sideName: string) => {
+    const name = (sideName || '').toLowerCase().trim();
+    if (name.includes('optional')) return true;
+    const step = steps.find(s => s.Name === sideName);
+    if (step && ((step as any).IsMandatory === false || (step as any).IsMandatory === 'false' || (step as any).IsMandatory === 0)) {
+      return true;
+    }
+    return false;
+  }, [steps]);
+
+  const mandatoryImageSides = useMemo(() => {
+    return clickableImageSides.filter(s => !isOptionalStep(s));
+  }, [clickableImageSides, isOptionalStep]);
+
+  const isAllMandatoryCaptured = useCallback(() => {
+    if (!mandatoryImageSides.length) return true;
+    return mandatoryImageSides.every(s => !!getClickedImage(s));
+  }, [mandatoryImageSides, getClickedImage]);
+
   const isVideoRecorded = () => {
     const videoUri = getSideUpload('Video')?.localUri;
     const videoStatus = sideUploadStatus['Video'];
     return !!videoUri || !!videoStatus;
   };
-  const isAllImagesCaptured = () => clickableImageSides.length > 0 && clickableImageSides.every(s => !!getClickedImage(s));
 
   const handleNextClick = () => {
-    if (!isAllImagesCaptured()) {
-      ToastAndroid.show("Please capture all images first", ToastAndroid.SHORT);
+    if (!isAllMandatoryCaptured()) {
+      ToastAndroid.show("Please capture all mandatory images first", ToastAndroid.SHORT);
       return;
     }
 
@@ -607,7 +627,9 @@ const ValuationPage = () => {
               {/* IMAGE CARDS */}
               <View style={styles.cardContainer}>
                 {clickableImageSides.map((side, index) => {
-                  const isUnlocked = index === 0 || clickableImageSides.slice(0, index).every(prev => !!getClickedImage(prev));
+                  const isOptional = isOptionalStep(side);
+                  const prevMandatorySides = clickableImageSides.slice(0, index).filter(s => !isOptionalStep(s));
+                  const isUnlocked = prevMandatorySides.every(prev => !!getClickedImage(prev));
                   
                   // SIMPLE: Find step by name - API should provide appColumn for all steps
                   const matchedStep = steps.find(s => s.Name === side);
@@ -618,6 +640,7 @@ const ValuationPage = () => {
                       id={leadId}
                       isDone={getClickedImage(side)}
                       isClickable={isUnlocked}
+                      isOptional={isOptional}
                       vehicleType={vehicleType}
                       text={side}
                       appColumn={resolveAppColumn(side, matchedStep?.Appcolumn, vehicleType)}
@@ -650,7 +673,7 @@ const ValuationPage = () => {
 
           {/* NEXT BUTTON */}
           <View style={[styles.nextBtnContainer]}>
-            <TouchableOpacity onPress={handleNextClick} style={[styles.nextBtn, isAllImagesCaptured() ? styles.nextBtnEnabled : styles.nextBtnDisabled]} activeOpacity={0.7}>
+            <TouchableOpacity onPress={handleNextClick} style={[styles.nextBtn, isAllMandatoryCaptured() ? styles.nextBtnEnabled : styles.nextBtnDisabled]} activeOpacity={0.7}>
               <RNText style={styles.nextBtnText}>Next</RNText>
             </TouchableOpacity>
           </View>
@@ -730,6 +753,8 @@ const styles = StyleSheet.create({
   videoIcon: { marginBottom: 6 },
   cardContainer: { width: "100%", flexDirection: "row", flexWrap: "wrap", gap: 20, justifyContent: "center", alignItems: "center", paddingTop: 20, paddingBottom: 40, paddingHorizontal: 10 },
   card: { width: "40%", minHeight: 120, justifyContent: "center", alignItems: "center", borderRadius: 10, padding: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3 },
+  optionalBadge: { position: 'absolute', top: 6, right: 6, backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: '#CBD5E1' },
+  optionalBadgeText: { fontSize: 10, fontWeight: '600', color: '#64748B' },
   cardImage: { width: "100%", height: 80, borderRadius: 8, marginBottom: 8 },
   cardIcon: { marginBottom: 8 },
   customCardIcon: { width: 56, height: 56, marginBottom: 8 },
