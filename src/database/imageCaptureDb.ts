@@ -104,13 +104,10 @@ export const getPendingImages = async (): Promise<CapturedImage[]> => {
   return select<CapturedImage>(
     `SELECT * FROM image_captures
      WHERE (
-       upload_status IN ('pending', 'failed')
-       AND retry_count < 3
+       (upload_status IN ('pending', 'failed') AND retry_count < 3)
+       OR (upload_status = 'uploading' AND created_at < datetime('now', '-5 minutes'))
      )
-     OR (
-       upload_status = 'uploading'
-       AND created_at < datetime('now', '-5 minutes')
-     )
+     AND lead_id NOT LIKE 'OFFLINE_%'
      ORDER BY created_at ASC`
   );
 };

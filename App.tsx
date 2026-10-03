@@ -59,9 +59,7 @@ const App = () => {
       if (isOnline && user?.token) {
         console.log('[App] Online — syncing pending leads...');
         await resetStuckPendingLeads();
-        await syncPendingLeads(user.token, (payload) =>
-          submitCreateLeadApi(user.token!, payload)
-        );
+        await syncPendingLeads(user.token);
       }
     });
 
@@ -70,9 +68,7 @@ const App = () => {
       const isOnline = state.isConnected && state.isInternetReachable !== false;
       if (isOnline && user?.token) {
         await resetStuckPendingLeads();
-        await syncPendingLeads(user.token, (payload) =>
-          submitCreateLeadApi(user.token!, payload)
-        );
+        await syncPendingLeads(user.token);
       }
     });
 

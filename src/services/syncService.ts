@@ -6,7 +6,7 @@ import { fetchAndSaveDashboard } from './DashboardService';
 import { saveCompanies } from './CompanyService';
 import { saveAllVehicleTypes } from './VehicleTypeService';
 import { saveAllYards } from './YardService';
-import { fetchAndSaveAllStatusLeads } from './LeadService';
+import { fetchAndSaveAllStatusLeads, syncPendingLeads } from './LeadService';
 import { saveAppStepsForAllVehicleTypes } from './AppStepService';
 import { fetchAndSaveCompletedLeads } from './AppLeadCompleted';
 import { fetchAndSaveDaybook } from './AppLeadDaybook';
@@ -67,6 +67,7 @@ export const syncAllData = async (
 
   // Step 3: Pending queue sync — depends on above data being present
   report('pendingQueue', 'Syncing pending offline data...', 88);
+  await syncPendingLeads(token);
   await syncPendingVehicleDetailsQueue(token);
 
   // Step 4: MMV warmup (background, non-blocking)

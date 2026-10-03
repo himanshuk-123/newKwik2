@@ -444,8 +444,14 @@ export const syncPendingVehicleDetails = async (token: string): Promise<{ synced
       const parsed = JSON.parse(item.payload);
 
       // New format: { main: {...}, optionalInfo: {...} }  |  Old format: raw payload
-      const mainPayload = parsed.main || parsed;
+      const mainPayload = { ...(parsed.main || parsed) };
       const optionalInfo = parsed.optionalInfo || null;
+
+      // ✅ FIX: Ensure reconciled real server LeadId is used instead of stale OFFLINE_ string
+      const effectiveLeadId = (leadId && !leadId.startsWith('OFFLINE_')) ? leadId : mainPayload.LeadId;
+      mainPayload.LeadId = effectiveLeadId;
+      if (mainPayload.LeadList) mainPayload.LeadList.LeadId = effectiveLeadId;
+      if (mainPayload.MMVTable) mainPayload.MMVTable.LeadId = effectiveLeadId;
 
       // ── Optional info pehle submit karo ──
       if (optionalInfo && typeof optionalInfo === 'object') {
@@ -455,19 +461,19 @@ export const syncPendingVehicleDetails = async (token: string): Promise<{ synced
           if (!answerValue) continue;
 
           const KNOWN_MAPPING: Record<string, (a: string) => any> = {
-            'battery condition check': (a) => ({ LeadId: mainPayload.LeadId, LeadFeature: { Battery: a } }),
-            'vehicle condition check': (a) => ({ LeadId: mainPayload.LeadId, LeadFeature: { VehicleCondition: a } }),
-            'check paint condition': (a) => ({ LeadHighlight: { LeadId: mainPayload.LeadId, Chassis: a } }),
+            'battery condition check': (a) => ({ LeadId: effectiveLeadId, LeadFeature: { Battery: a } }),
+            'vehicle condition check': (a) => ({ LeadId: effectiveLeadId, LeadFeature: { VehicleCondition: a } }),
+            'check paint condition': (a) => ({ LeadHighlight: { LeadId: effectiveLeadId, Chassis: a } }),
           };
 
           const knownBuilder = KNOWN_MAPPING[question.toLowerCase()];
           const infoPayload = knownBuilder
             ? { Version: VD_API_VERSION, ...knownBuilder(answerValue) }
-            : { Version: VD_API_VERSION, LeadId: mainPayload.LeadId, [appColumn || question]: { Value: answerValue } };
+            : { Version: VD_API_VERSION, LeadId: effectiveLeadId, [appColumn || question]: { Value: answerValue } };
 
           try {
             await apiCall('LeadReportDataCreateedit', token, infoPayload);
-            console.log(`[VDS] ✅ Optional info synced: ${question}`);
+            console.log(`[VDS] ✅ Optional info synced: ${question} for lead ${effectiveLeadId}`);
           } catch (e) {
             console.warn(`[VDS] ⚠️ Optional info failed: ${question}`, e);
           }
@@ -475,6 +481,7 @@ export const syncPendingVehicleDetails = async (token: string): Promise<{ synced
       }
 
       // ── Main vehicle details submit ──
+      console.log(`[VDS] Submitting main vehicle details for lead ${effectiveLeadId}...`);
       const res = await apiCall<VehicleDetailsSubmitResponse>(
         'LeadReportDataCreateedit',
         token,

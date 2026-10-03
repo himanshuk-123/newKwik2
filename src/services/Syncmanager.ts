@@ -17,6 +17,7 @@ import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { uploadPendingImages } from './Imageuploadservice';
 import { getPendingCount, resetStuckUploads } from '../database/imageCaptureDb';
 import { syncPendingVehicleDetails } from './VehicleDetailService';
+import { syncPendingLeads } from './LeadService';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STATE
@@ -56,6 +57,14 @@ const runUpload = async () => {
   _pendingRerun = false;
 
   try {
+    // ── Step 0: Sync pending offline leads FIRST (Lead Creation -> Server ID) ──
+    try {
+      console.log('[SyncManager] Step 0: Syncing pending offline leads...');
+      await syncPendingLeads(_token);
+    } catch (e) {
+      console.error('[SyncManager] Lead creation sync error:', e);
+    }
+
     // ── Step 1: Images pehle upload karo ──
     const pending = await getPendingCount();
     if (pending > 0) {

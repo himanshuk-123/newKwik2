@@ -9,6 +9,7 @@ import type { LeadListStatuswiseResponse, LeadRecord } from './types';
 import { apiCall, APP_VERSION } from './ApiClient';
 import { LEAD_STATUS_ID_MAP, type LeadStatusType } from '../constants/LeadStats';
 import { incrementOfflineAssignedLeadCount } from './DashboardService';
+import { submitCreateLeadApi } from './CreateLead';
 
 // ─── API CALL ────────────────────────────────────────────────────────────────
 
@@ -211,33 +212,182 @@ export const saveOfflineCreatedLead = async (params: SaveOfflineLeadParams): Pro
   return offlineId;
 };
 
+// ─── HELPER: NORMALIZE REG NO FOR ROBUST MATCHING ────────────────────────────
+
+const normalizeRegNo = (str?: string | null): string => {
+  if (!str) return '';
+  return str.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+};
+
 // ─── RECONCILE OFFLINE LEADS AFTER SERVER SYNC ────────────────────────────────
 
 export const reconcileOfflineLeads = async (): Promise<void> => {
   try {
-    const offlineLeads = await select<{ id: string; reg_no: string }>(
-      "SELECT id, reg_no FROM status_leads WHERE id LIKE 'OFFLINE_%'"
+    // 1. Discover ALL offline lead IDs from image_captures, pending_vehicle_details, AND status_leads
+    const imgLeadIds = await select<{ lead_id: string }>(
+      "SELECT DISTINCT lead_id FROM image_captures WHERE lead_id LIKE 'OFFLINE_%'"
     );
-    if (!offlineLeads.length) return;
+    const vdLeadIds = await select<{ lead_id: string }>(
+      "SELECT DISTINCT lead_id FROM pending_vehicle_details WHERE lead_id LIKE 'OFFLINE_%'"
+    );
+    const statusLeadIds = await select<{ id: string }>(
+      "SELECT DISTINCT id FROM status_leads WHERE id LIKE 'OFFLINE_%'"
+    );
 
-    for (const off of offlineLeads) {
-      if (!off.reg_no) continue;
-      const serverMatch = await select<{ id: string }>(
-        "SELECT id FROM status_leads WHERE reg_no = ? AND id NOT LIKE 'OFFLINE_%' LIMIT 1",
-        [off.reg_no]
+    const allOfflineIds = Array.from(
+      new Set([
+        ...imgLeadIds.map(r => r.lead_id),
+        ...vdLeadIds.map(r => r.lead_id),
+        ...statusLeadIds.map(r => r.id),
+      ])
+    ).filter(Boolean);
+
+    if (!allOfflineIds.length) return;
+
+    console.log(`[RECONCILE] 🔍 Found ${allOfflineIds.length} offline lead ID(s) to reconcile:`, allOfflineIds);
+
+    // 2. Fetch all real server leads (non-offline) from status_leads
+    const serverLeads = await select<{ id: string; reg_no: string }>(
+      "SELECT id, reg_no FROM status_leads WHERE id NOT LIKE 'OFFLINE_%' AND reg_no IS NOT NULL AND reg_no != ''"
+    );
+
+    // 3. Fetch pending_leads payloads for fallback reg_no lookup
+    const pendingLeadsRows = await select<{ payload: string }>(
+      "SELECT payload FROM pending_leads"
+    );
+    const pendingRegNos: Record<string, string> = {};
+    for (const p of pendingLeadsRows) {
+      try {
+        const parsed = JSON.parse(p.payload);
+        if (parsed?.RegNo) {
+          const clean = normalizeRegNo(parsed.RegNo);
+          if (clean) pendingRegNos[clean] = parsed.RegNo;
+        }
+      } catch {}
+    }
+
+    // 4. Reconcile each offline ID
+    for (const offId of allOfflineIds) {
+      // Find reg_no for this offId from status_leads
+      const statusMatch = await select<{ reg_no: string }>(
+        "SELECT reg_no FROM status_leads WHERE id = ? LIMIT 1",
+        [offId]
       );
-      if (serverMatch[0]) {
-        const realServerId = serverMatch[0].id;
-        console.log(`[LEAD] 🔄 Reconciling offline lead ${off.id} -> Server ID ${realServerId}`);
-        await run("UPDATE image_captures SET lead_id = ? WHERE lead_id = ?", [realServerId, off.id]);
-        await run("UPDATE pending_vehicle_details SET lead_id = ? WHERE lead_id = ?", [realServerId, off.id]);
-        await run("DELETE FROM status_leads WHERE id = ?", [off.id]);
+      let rawRegNo = statusMatch[0]?.reg_no || '';
+      let cleanRegNo = normalizeRegNo(rawRegNo);
+
+      // Match against serverLeads by normalized reg_no
+      let serverMatch = serverLeads.find(
+        s => normalizeRegNo(s.reg_no) === cleanRegNo && cleanRegNo.length > 0
+      );
+
+      // Fallback: check pending_leads payload map if cleanRegNo was empty
+      if (!serverMatch) {
+        for (const s of serverLeads) {
+          const sClean = normalizeRegNo(s.reg_no);
+          if (sClean && pendingRegNos[sClean]) {
+            serverMatch = s;
+            break;
+          }
+        }
+      }
+
+      if (serverMatch) {
+        const realServerId = serverMatch.id;
+        console.log(`[RECONCILE] 🔄 Reconciling offline lead ${offId} -> Real Server ID ${realServerId} (RegNo: ${serverMatch.reg_no})`);
+        
+        await run("UPDATE image_captures SET lead_id = ? WHERE lead_id = ?", [realServerId, offId]);
+        await run("UPDATE pending_vehicle_details SET lead_id = ? WHERE lead_id = ?", [realServerId, offId]);
+
+        // Replace stale offId inside JSON payload string in pending_vehicle_details
+        const vdRows = await select<{ id: number; payload: string }>(
+          "SELECT id, payload FROM pending_vehicle_details WHERE lead_id = ?",
+          [realServerId]
+        );
+        for (const vRow of vdRows) {
+          if (vRow.payload && vRow.payload.includes(offId)) {
+            const updatedPayload = vRow.payload.replace(new RegExp(offId, 'g'), realServerId);
+            await run("UPDATE pending_vehicle_details SET payload = ? WHERE id = ?", [updatedPayload, vRow.id]);
+            console.log(`[RECONCILE] ✏️ Updated JSON payload for pending_vehicle_details #${vRow.id}`);
+          }
+        }
+
+        await run("DELETE FROM status_leads WHERE id = ?", [offId]);
+      } else {
+        console.warn(`[RECONCILE] ⚠️ Could not find server match for offline lead ${offId} (RegNo: ${rawRegNo || cleanRegNo})`);
       }
     }
   } catch (e) {
-    console.error('[LEAD] reconcileOfflineLeads failed:', e);
+    console.error('[RECONCILE] reconcileOfflineLeads failed:', e);
   }
 };
+
+// ─── SYNC PENDING OFFLINE CREATED LEADS TO SERVER ────────────────────────────
+
+export const syncPendingLeads = async (token: string): Promise<{ synced: number; failed: number }> => {
+  let synced = 0;
+  let failed = 0;
+
+  try {
+    const pendingLeads = await select<{ id: number; payload: string; retry_count: number }>(
+      "SELECT * FROM pending_leads WHERE status = 'pending' AND retry_count < 9 ORDER BY created_at ASC"
+    );
+
+    if (!pendingLeads.length) {
+      await reconcileOfflineLeads();
+      return { synced: 0, failed: 0 };
+    }
+
+    console.log(`[LEAD] 🔄 Processing ${pendingLeads.length} pending offline leads...`);
+
+    for (const item of pendingLeads) {
+      try {
+        const payload = JSON.parse(item.payload);
+        console.log(`[LEAD] Submitting offline lead #${item.id}:`, payload.RegNo);
+        const res = await submitCreateLeadApi(token, payload);
+
+        const isSuccess = res.ERROR === '0' ||
+          res.MESSAGE?.toLowerCase().includes('already') ||
+          res.MESSAGE?.toLowerCase().includes('exist');
+
+        // Extract direct server lead ID if returned in API response
+        const serverIdFromResponse =
+          (res as any).DataRecord?.[0]?.id ||
+          (res as any).DataRecord?.[0]?.LeadId ||
+          (res as any).LeadId ||
+          (res as any).Id ||
+          (res as any).id;
+
+        if (isSuccess) {
+          await run("UPDATE pending_leads SET status = 'synced', last_tried_at = CURRENT_TIMESTAMP WHERE id = ?", [item.id]);
+          synced++;
+          console.log(`[LEAD] ✅ Synced offline lead #${item.id} (${payload.RegNo})`, serverIdFromResponse ? `-> Server ID ${serverIdFromResponse}` : '');
+        } else {
+          await run("UPDATE pending_leads SET retry_count = retry_count + 1, last_tried_at = CURRENT_TIMESTAMP, last_error = ? WHERE id = ?", [res.MESSAGE ?? 'Server error', item.id]);
+          failed++;
+          console.warn(`[LEAD] ⚠️ Server rejected offline lead #${item.id}:`, res.MESSAGE);
+        }
+      } catch (e: any) {
+        await run("UPDATE pending_leads SET retry_count = retry_count + 1, last_tried_at = CURRENT_TIMESTAMP, last_error = ? WHERE id = ?", [e?.message ?? 'Network error', item.id]);
+        failed++;
+        console.error(`[LEAD] ❌ Sync error for offline lead #${item.id}:`, e);
+      }
+    }
+
+    // Delete synced pending leads
+    await run("DELETE FROM pending_leads WHERE status = 'synced'");
+
+    // Fetch fresh server assigned leads to populate status_leads and reconcile
+    console.log('[LEAD] 🔄 Fetching server assigned leads to obtain real server IDs...');
+    await fetchAndSaveLeadsByStatus(token, 'AssignedLeads');
+    await reconcileOfflineLeads();
+  } catch (e) {
+    console.error('[LEAD] syncPendingLeads failed:', e);
+  }
+
+  return { synced, failed };
+};
+
 
 // ─── DB GET ──────────────────────────────────────────────────────────────────
 
@@ -249,52 +399,7 @@ export const getLeadsByStatus = async (statusType: LeadStatusType): Promise<any[
   );
 };
 
-// ─── PENDING LEADS ───────────────────────────────────────────────────────────
-
-export const syncPendingLeads = async (
-  token: string,
-  submitFn: (payload: any) => Promise<{ ERROR: string; MESSAGE: string }>
-): Promise<void> => {
-  const pending = await select<{ id: number; payload: string; retry_count: number }>(
-    "SELECT * FROM pending_leads WHERE status = 'pending' AND retry_count < 5"
-  );
-  if (!pending.length) return;
-  console.log(`[LEAD] Pending leads: ${pending.length}`);
-
-  for (const lead of pending) {
-    try {
-      const res = await submitFn(JSON.parse(lead.payload));
-
-      if (res.ERROR === '0') {
-        await run(
-          "UPDATE pending_leads SET status = 'synced', last_tried_at = CURRENT_TIMESTAMP WHERE id = ?",
-          [lead.id]
-        );
-        console.log(`[LEAD] ✅ Synced pending lead #${lead.id}`);
-      } else {
-        // Server ne reject kiya — error store karo
-        const errorMsg = res.MESSAGE || `Server error (ERROR=${res.ERROR})`;
-        console.warn(`[LEAD] ❌ Server rejected lead #${lead.id}: ${errorMsg}`);
-        await run(  
-          "UPDATE pending_leads SET retry_count = retry_count + 1, last_tried_at = CURRENT_TIMESTAMP, last_error = ? WHERE id = ?",
-          [errorMsg, lead.id]
-        );
-      }
-    } catch (e: any) {
-      // Network error — retry karega
-      const errorMsg = e?.message || 'Network error';
-      console.warn(`[LEAD] ⚠️ Network error for lead #${lead.id}: ${errorMsg}`);
-      await run(
-        "UPDATE pending_leads SET retry_count = retry_count + 1, last_tried_at = CURRENT_TIMESTAMP, last_error = ? WHERE id = ?",
-        [errorMsg, lead.id]
-      );
-    }
-  }
-
-  // Cleanup synced leads
-  await run("DELETE FROM pending_leads WHERE status = 'synced'", []);
-  await reconcileOfflineLeads();
-};
+// ─── PENDING LEADS RESET ──────────────────────────────────────────────────────
 
 /**
  * Stuck pending leads reset karo — app startup pe call hoga

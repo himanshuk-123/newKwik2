@@ -25,6 +25,7 @@ import { saveQuestionnaireAnswer } from "../database/imageCaptureDb";
 import useQuestions from "../services/useQuestions";
 import { resolveAppColumn } from "../constants/DocumentUploadMapping";
 import { getVehicleCardImage } from "../assets/vehicleImages";
+import { reconcileOfflineLeads } from "../services/LeadService";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -411,6 +412,7 @@ const ValuationPage = () => {
   const loadCapturedMedia = useCallback(async () => {
     if (!leadId) return;
     try {
+      await reconcileOfflineLeads();
       const captured = await getCapturedMediaByLeadId(leadId.toString());
       if (!captured.length) return;
 

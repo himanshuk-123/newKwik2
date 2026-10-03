@@ -13,7 +13,7 @@ import SingleCard from '../components/SingleCard';
 import { COLORS } from '../constants/Colors';
 import { VehicleCE } from '../assets';
 import { run } from '../database/db';
-import { getLeadsByStatus, fetchAndSaveLeadsByStatus } from '../services/LeadService';
+import { getLeadsByStatus, fetchAndSaveLeadsByStatus, reconcileOfflineLeads } from '../services/LeadService';
 import { confirmAppointmentApi } from '../services/ApiClient';
 import { useAppStore } from '../store/AppStore';
 
@@ -96,6 +96,7 @@ const MyTasksPage = () => {
   const loadLeadsFromDB = useCallback(async () => {
     try {
       setIsLoading(true);
+      await reconcileOfflineLeads();
       const rows = await getLeadsByStatus('AssignedLeads') as LeadFromDB[];
       const hiddenIds = new Set(hiddenMyTaskLeadIds);
       const visibleRows = rows.filter(row => !hiddenIds.has(String(row.id)) && !hiddenIds.has(String(row.lead_id)));
