@@ -38,6 +38,90 @@ export const THREE_WHEELER_IMAGES = {
   valuatorSelfie: require('./3WImages/13_valuator_selfie.png'),
 };
 
+// ── 4W (FOUR WHEELER / CAR) ───────────────────────────────────────────────────
+export const FOUR_WHEELER_IMAGES = {
+  frontView: require('./4WImages/01_front_view.png'),
+  backView: require('./4WImages/02_back_view.png'),
+  leftSide: require('./4WImages/03_left_side.png'),
+  rightSide: require('./4WImages/04_right_side.png'),
+  engineView: require('./4WImages/05_engine_view.png'),
+  chassisImprint: require('./4WImages/06_chassis_imprint.png'),
+  chassisPlate: require('./4WImages/07_chassis_plate.png'),
+  odometer: require('./4WImages/08_odometer.png'),
+  dashboardFrontSeats: require('./4WImages/09_dashboard_front_seats.png'),
+  rearSideSeats: require('./4WImages/10_rear_side_seats.png'),
+  frontRightTyre: require('./4WImages/11_front_right_tyre.png'),
+  frontLeftTyre: require('./4WImages/12_front_left_tyre.png'),
+  rearRightTyre: require('./4WImages/13_rear_right_tyre.png'),
+  rearLeftTyre: require('./4WImages/14_rear_left_tyre.png'),
+};
+
+// ── CV (COMMERCIAL VEHICLE / BUS / TRUCK / LCV / HCV) ───────────────────────────
+export const CV_IMAGES = {
+  frontSide: require('./CVIcons/01_front_side.png'),
+  backSide: require('./CVIcons/02_back_side.png'),
+  leftSide: require('./CVIcons/03_left_side.png'),
+  rightSide: require('./CVIcons/04_right_side.png'),
+  engineView: require('./CVIcons/05_engine_view.png'),
+  chassisImprint: require('./CVIcons/06_chassis_imprint.png'),
+  chassisPlate: require('./CVIcons/07_chassis_plate.png'),
+  odometer: require('./CVIcons/08_odometer.png'),
+  dashboard: require('./CVIcons/09_dashboard.png'),
+  frontRightTyre: require('./CVIcons/10_front_right_tyre.png'),
+  frontLeftTyre: require('./CVIcons/11_front_left_tyre.png'),
+  rearRightTyre: require('./CVIcons/12_rear_right_tyre.png'),
+  rearLeftTyre: require('./CVIcons/13_rear_left_tyre.png'),
+  frontUnderCarriage: require('./CVIcons/14_front_under_carriage.png'),
+  rearUnderCarriage: require('./CVIcons/15_rear_under_carriage.png'),
+};
+
+export const COMMERCIAL_VEHICLE_IMAGES = CV_IMAGES;
+
+// ── CE (CONSTRUCTION EQUIPMENT / JCB / EXCAVATOR / CRANE / LOADER) ───────────────
+export const CE_IMAGES = {
+  frontSide: require('./CEIcons/01_front_side.png'),
+  backSide: require('./CEIcons/02_back_side.png'),
+  leftSide: require('./CEIcons/03_left_side.png'),
+  rightSide: require('./CEIcons/04_right_side.png'),
+  engineView: require('./CEIcons/05_engine_view.png'),
+  chassisImprint: require('./CEIcons/06_chassis_imprint.png'),
+  chassisPlate: require('./CEIcons/07_chassis_plate.png'),
+  odometer: require('./CEIcons/08_odometer.png'),
+  dashboard: require('./CEIcons/09_dashboard.png'),
+  operatorSeat: require('./CEIcons/10_operator_seat.png'),
+  frontRightTyre: require('./CEIcons/11_front_right_tyre.png'),
+  frontLeftTyre: require('./CEIcons/12_front_left_tyre.png'),
+  rearRightTyre: require('./CEIcons/13_rear_right_tyre.png'),
+  rearLeftTyre: require('./CEIcons/14_rear_left_tyre.png'),
+  frontUnderCarriage: require('./CEIcons/15_front_under_carriage.png'),
+  rearUnderCarriage: require('./CEIcons/16_rear_under_carriage.png'),
+};
+
+export const CONSTRUCTION_EQUIPMENT_IMAGES = CE_IMAGES;
+
+// ── FE (FARM EQUIPMENT / TRACTOR / HARVESTER / AGRI) ───────────────────────────
+export const FE_IMAGES = {
+  frontSide: require('./FEIcons/01_front_side.png'),
+  backSide: require('./FEIcons/02_back_side.png'),
+  leftSide: require('./FEIcons/03_left_side.png'),
+  rightSide: require('./FEIcons/04_right_side.png'),
+  engineView: require('./FEIcons/05_engine_view.png'),
+  chassisImprint: require('./FEIcons/06_chassis_imprint.png'),
+  chassisPlate: require('./FEIcons/07_chassis_plate.png'),
+  odometer: require('./FEIcons/08_odometer.png'),
+  dashboard: require('./FEIcons/09_dashboard.png'),
+  driverSeat: require('./FEIcons/10_driver_seat.png'),
+  frontRightTyre: require('./FEIcons/11_front_right_tyre.png'),
+  frontLeftTyre: require('./FEIcons/12_front_left_tyre.png'),
+  rearRightTyre: require('./FEIcons/13_rear_right_tyre.png'),
+  rearLeftTyre: require('./FEIcons/14_rear_left_tyre.png'),
+  frontUnderCarriage: require('./FEIcons/15_front_under_carriage.png'),
+  rearUnderCarriage: require('./FEIcons/16_rear_under_carriage.png'),
+};
+
+export const FARM_EQUIPMENT_IMAGES = FE_IMAGES;
+export const TRACTOR_IMAGES = FE_IMAGES;
+
 /**
  * Returns custom AI card image asset for vehicle type and step name.
  * Falls back to null if no custom image is defined (allowing default vector icon fallback).
@@ -48,9 +132,9 @@ export const getVehicleCardImage = (cardName: string, vehicleType: string) => {
 
   const is3W = vType.includes('3W') || vType.includes('THREE') || vType === 'AUTO' || vType === 'RICKSHAW';
   const is4W = vType.includes('4W') || vType.includes('FOUR') || vType.includes('CAR');
-  const isCV = vType.includes('CV') || vType.includes('COMMERCIAL');
-  const isFE = vType.includes('FE') || vType.includes('FARM');
-  const isCE = vType.includes('CE') || vType.includes('CONSTRUCTION');
+  const isCV = vType.includes('CV') || vType.includes('COMMERCIAL') || vType.includes('TRUCK') || vType.includes('BUS') || vType.includes('LCV') || vType.includes('HCV') || vType.includes('MHCV');
+  const isFE = vType.includes('FE') || vType.includes('FARM') || vType.includes('TRACTOR') || vType.includes('HARVESTER') || vType.includes('AGRI');
+  const isCE = vType.includes('CE') || vType.includes('CONSTRUCTION') || vType.includes('EQUIPMENT') || vType.includes('JCB') || vType.includes('EXCAVATOR') || vType.includes('CRANE') || vType.includes('LOADER') || vType.includes('BULLDOZER') || vType.includes('ROLLER');
 
   // ── 3W (Three Wheeler) ──────────────────────────────────────────────────────
   if (is3W) {
@@ -178,6 +262,734 @@ export const getVehicleCardImage = (cardName: string, vehicleType: string) => {
       n.includes('front')
     ) {
       return THREE_WHEELER_IMAGES.frontView;
+    }
+  }
+
+  // ── 4W (Four Wheeler / Car) ────────────────────────────────────────────────
+  if (is4W) {
+    // 0. Selfie / Valuator Selfie
+    if (n.includes('selfie') || n.includes('valuator') || n.includes('inspector') || n.includes('user photo') || n.includes('profile')) {
+      return TWO_WHEELER_IMAGES.valuatorSelfie;
+    }
+
+    // 1. Odometer / Speedometer / Meter
+    if (
+      n.includes('odometer') ||
+      n.includes('odmeter') ||
+      n.includes('speedometer') ||
+      n.includes('meter')
+    ) {
+      return FOUR_WHEELER_IMAGES.odometer;
+    }
+
+    // 2. Dashboard / Front Seats / Front Interior / Cabin
+    if (
+      n.includes('dashboard') ||
+      n.includes('front seat') ||
+      n.includes('steering') ||
+      n.includes('front cabin') ||
+      n.includes('front interior') ||
+      n.includes('interior front')
+    ) {
+      return FOUR_WHEELER_IMAGES.dashboardFrontSeats;
+    }
+
+    // 3. Rear Seats / Back Seats / Passenger Seat / Interior Back Side / Rear Interior
+    if (
+      n.includes('rear seat') ||
+      n.includes('back seat') ||
+      n.includes('rear cabin') ||
+      n.includes('passenger seat') ||
+      n.includes('second row') ||
+      n.includes('rear interior') ||
+      n.includes('interior rear') ||
+      n.includes('interior back') ||
+      n.includes('back interior') ||
+      (n.includes('interior') && (n.includes('back') || n.includes('rear')))
+    ) {
+      return FOUR_WHEELER_IMAGES.rearSideSeats;
+    }
+
+    // 4. Tyres (Front Right, Front Left, Rear Right, Rear Left, general)
+    if (
+      (n.includes('front right') || n.includes('frnt right') || n.includes('right front') || n.includes('rhs front') || n.includes('tyre 1') || n.includes('tyre1')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel'))
+    ) {
+      return FOUR_WHEELER_IMAGES.frontRightTyre;
+    }
+    if (
+      (n.includes('front left') || n.includes('frnt left') || n.includes('left front') || n.includes('lhs front') || n.includes('tyre 2') || n.includes('tyre2')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel'))
+    ) {
+      return FOUR_WHEELER_IMAGES.frontLeftTyre;
+    }
+    if (
+      (n.includes('rear right') || n.includes('back right') || n.includes('right rear') || n.includes('rhs rear') || n.includes('tyre 4') || n.includes('tyre4')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel'))
+    ) {
+      return FOUR_WHEELER_IMAGES.rearRightTyre;
+    }
+    if (
+      (n.includes('rear left') || n.includes('back left') || n.includes('left rear') || n.includes('lhs rear') || n.includes('tyre 3') || n.includes('tyre3')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel'))
+    ) {
+      return FOUR_WHEELER_IMAGES.rearLeftTyre;
+    }
+    if (
+      (n.includes('front') || n.includes('frnt')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel'))
+    ) {
+      return FOUR_WHEELER_IMAGES.frontRightTyre;
+    }
+    if (
+      (n.includes('rear') || n.includes('back')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel'))
+    ) {
+      return FOUR_WHEELER_IMAGES.rearRightTyre;
+    }
+    if (n.includes('tyre') || n.includes('tire') || n.includes('wheel')) {
+      return FOUR_WHEELER_IMAGES.frontRightTyre;
+    }
+
+    // 5. Engine View
+    if (n.includes('engine') || n.includes('eng') || n.includes('bonnet') || n.includes('hood') || n.includes('motor')) {
+      return FOUR_WHEELER_IMAGES.engineView;
+    }
+
+    // 6. Chassis Plate vs Chassis Imprint vs Chassis/VIN general
+    if (
+      n.includes('chassis plate') ||
+      n.includes('vin plate') ||
+      n.includes('id plate') ||
+      n.includes('metal plate')
+    ) {
+      return FOUR_WHEELER_IMAGES.chassisPlate;
+    }
+    if (
+      n.includes('chassis imprint') ||
+      n.includes('chassis stamp') ||
+      n.includes('imprint') ||
+      n.includes('stamper') ||
+      n.includes('vin stamp') ||
+      n.includes('number imprint')
+    ) {
+      return FOUR_WHEELER_IMAGES.chassisImprint;
+    }
+    if (
+      n.includes('chassis') ||
+      n.includes('vin') ||
+      n.includes('plate') ||
+      n.includes('frame')
+    ) {
+      return FOUR_WHEELER_IMAGES.chassisImprint;
+    }
+
+    // 7. RC / Documents
+    if (
+      n.includes('rc') ||
+      n.includes('document') ||
+      n.includes('doc') ||
+      n.includes('registration') ||
+      n.includes('certificate') ||
+      n.includes('paper')
+    ) {
+      return TWO_WHEELER_IMAGES.rcDocuments;
+    }
+
+    // 8. Views / Sides (Left, Right, Back/Rear, Front)
+    if (
+      n.includes('left side') ||
+      n.includes('left view') ||
+      n.includes('left angle') ||
+      n.includes('left') ||
+      n.includes('lhs')
+    ) {
+      return FOUR_WHEELER_IMAGES.leftSide;
+    }
+    if (
+      n.includes('right side') ||
+      n.includes('right view') ||
+      n.includes('right angle') ||
+      n.includes('right') ||
+      n.includes('rhs')
+    ) {
+      return FOUR_WHEELER_IMAGES.rightSide;
+    }
+    if (
+      n.includes('rear side') ||
+      n.includes('rear view') ||
+      n.includes('rear angle') ||
+      n.includes('back side') ||
+      n.includes('back view') ||
+      n.includes('back angle') ||
+      n.includes('rear') ||
+      n.includes('back') ||
+      n.includes('boot') ||
+      n.includes('dick')
+    ) {
+      return FOUR_WHEELER_IMAGES.backView;
+    }
+    if (
+      n.includes('front side') ||
+      n.includes('front view') ||
+      n.includes('front angle') ||
+      n.includes('front')
+    ) {
+      return FOUR_WHEELER_IMAGES.frontView;
+    }
+  }
+
+  // ── CV (Commercial Vehicle / Truck / Bus / LCV / HCV) ──────────────────────
+  if (isCV) {
+    // 0. Selfie / Valuator Selfie
+    if (n.includes('selfie') || n.includes('valuator') || n.includes('inspector') || n.includes('user photo') || n.includes('profile')) {
+      return TWO_WHEELER_IMAGES.valuatorSelfie;
+    }
+
+    // 1. Odometer / Speedometer / Meter
+    if (
+      n.includes('odometer') ||
+      n.includes('odmeter') ||
+      n.includes('speedometer') ||
+      n.includes('meter')
+    ) {
+      return CV_IMAGES.odometer;
+    }
+
+    // 2. Dashboard / Interior / Cabin
+    if (
+      n.includes('dashboard') ||
+      n.includes('cabin') ||
+      n.includes('interior') ||
+      n.includes('steering') ||
+      n.includes('front seat')
+    ) {
+      return CV_IMAGES.dashboard;
+    }
+
+    // 3. Under Carriage (Front vs Rear / General)
+    if (
+      (n.includes('front') || n.includes('frnt')) &&
+      (n.includes('under') || n.includes('carriage') || n.includes('chassis bottom') || n.includes('bottom') || n.includes('underbody'))
+    ) {
+      return CV_IMAGES.frontUnderCarriage;
+    }
+    if (
+      (n.includes('rear') || n.includes('back')) &&
+      (n.includes('under') || n.includes('carriage') || n.includes('chassis bottom') || n.includes('bottom') || n.includes('underbody'))
+    ) {
+      return CV_IMAGES.rearUnderCarriage;
+    }
+    if (n.includes('under') || n.includes('carriage') || n.includes('underbody')) {
+      return CV_IMAGES.frontUnderCarriage;
+    }
+
+    // 4. Tyres (Front Right, Front Left, Rear Right, Rear Left, general)
+    if (
+      (n.includes('front right') || n.includes('frnt right') || n.includes('right front') || n.includes('rhs front') || n.includes('tyre 1') || n.includes('tyre1')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel'))
+    ) {
+      return CV_IMAGES.frontRightTyre;
+    }
+    if (
+      (n.includes('front left') || n.includes('frnt left') || n.includes('left front') || n.includes('lhs front') || n.includes('tyre 2') || n.includes('tyre2')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel'))
+    ) {
+      return CV_IMAGES.frontLeftTyre;
+    }
+    if (
+      (n.includes('rear right') || n.includes('back right') || n.includes('right rear') || n.includes('rhs rear') || n.includes('tyre 4') || n.includes('tyre4')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel'))
+    ) {
+      return CV_IMAGES.rearRightTyre;
+    }
+    if (
+      (n.includes('rear left') || n.includes('back left') || n.includes('left rear') || n.includes('lhs rear') || n.includes('tyre 3') || n.includes('tyre3')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel'))
+    ) {
+      return CV_IMAGES.rearLeftTyre;
+    }
+    if (
+      (n.includes('front') || n.includes('frnt')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel'))
+    ) {
+      return CV_IMAGES.frontRightTyre;
+    }
+    if (
+      (n.includes('rear') || n.includes('back')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel'))
+    ) {
+      return CV_IMAGES.rearRightTyre;
+    }
+    if (n.includes('tyre') || n.includes('tire') || n.includes('wheel')) {
+      return CV_IMAGES.frontRightTyre;
+    }
+
+    // 5. Engine View
+    if (n.includes('engine') || n.includes('eng') || n.includes('bonnet') || n.includes('hood') || n.includes('motor')) {
+      return CV_IMAGES.engineView;
+    }
+
+    // 6. Chassis Plate vs Chassis Imprint vs Chassis/VIN general
+    if (
+      n.includes('chassis plate') ||
+      n.includes('vin plate') ||
+      n.includes('id plate') ||
+      n.includes('metal plate')
+    ) {
+      return CV_IMAGES.chassisPlate;
+    }
+    if (
+      n.includes('chassis imprint') ||
+      n.includes('chassis stamp') ||
+      n.includes('imprint') ||
+      n.includes('stamper') ||
+      n.includes('vin stamp') ||
+      n.includes('number imprint')
+    ) {
+      return CV_IMAGES.chassisImprint;
+    }
+    if (
+      n.includes('chassis') ||
+      n.includes('vin') ||
+      n.includes('plate') ||
+      n.includes('frame')
+    ) {
+      return CV_IMAGES.chassisImprint;
+    }
+
+    // 7. RC / Documents
+    if (
+      n.includes('rc') ||
+      n.includes('document') ||
+      n.includes('doc') ||
+      n.includes('registration') ||
+      n.includes('certificate') ||
+      n.includes('paper')
+    ) {
+      return TWO_WHEELER_IMAGES.rcDocuments;
+    }
+
+    // 8. Views / Sides (Left, Right, Back/Rear, Front)
+    if (
+      n.includes('left side') ||
+      n.includes('left view') ||
+      n.includes('left angle') ||
+      n.includes('left') ||
+      n.includes('lhs')
+    ) {
+      return CV_IMAGES.leftSide;
+    }
+    if (
+      n.includes('right side') ||
+      n.includes('right view') ||
+      n.includes('right angle') ||
+      n.includes('right') ||
+      n.includes('rhs')
+    ) {
+      return CV_IMAGES.rightSide;
+    }
+    if (
+      n.includes('rear side') ||
+      n.includes('rear view') ||
+      n.includes('rear angle') ||
+      n.includes('back side') ||
+      n.includes('back view') ||
+      n.includes('back angle') ||
+      n.includes('rear') ||
+      n.includes('back') ||
+      n.includes('cargo') ||
+      n.includes('load body')
+    ) {
+      return CV_IMAGES.backSide;
+    }
+    if (
+      n.includes('front side') ||
+      n.includes('front view') ||
+      n.includes('front angle') ||
+      n.includes('front')
+    ) {
+      return CV_IMAGES.frontSide;
+    }
+  }
+
+  // ── CE (Construction Equipment / JCB / Excavator / Crane / Loader) ─────────
+  if (isCE) {
+    // 0. Selfie / Valuator Selfie
+    if (n.includes('selfie') || n.includes('valuator') || n.includes('inspector') || n.includes('user photo') || n.includes('profile')) {
+      return TWO_WHEELER_IMAGES.valuatorSelfie;
+    }
+
+    // 1. Odometer / Speedometer / Hour Meter / Meter
+    if (
+      n.includes('odometer') ||
+      n.includes('odmeter') ||
+      n.includes('speedometer') ||
+      n.includes('hour') ||
+      n.includes('meter')
+    ) {
+      return CE_IMAGES.odometer;
+    }
+
+    // 2. Operator Seat / Cabin Seat / Driver Seat
+    if (
+      n.includes('operator seat') ||
+      n.includes('driver seat') ||
+      n.includes('cabin seat') ||
+      n.includes('operator')
+    ) {
+      return CE_IMAGES.operatorSeat;
+    }
+
+    // 3. Dashboard / Control Panel / Cabin / Steering
+    if (
+      n.includes('dashboard') ||
+      n.includes('cabin') ||
+      n.includes('interior') ||
+      n.includes('steering') ||
+      n.includes('control') ||
+      n.includes('panel')
+    ) {
+      return CE_IMAGES.dashboard;
+    }
+
+    // 4. Under Carriage (Front vs Rear / General)
+    if (
+      (n.includes('front') || n.includes('frnt')) &&
+      (n.includes('under') || n.includes('carriage') || n.includes('chassis bottom') || n.includes('bottom') || n.includes('underbody') || n.includes('track'))
+    ) {
+      return CE_IMAGES.frontUnderCarriage;
+    }
+    if (
+      (n.includes('rear') || n.includes('back')) &&
+      (n.includes('under') || n.includes('carriage') || n.includes('chassis bottom') || n.includes('bottom') || n.includes('underbody') || n.includes('track'))
+    ) {
+      return CE_IMAGES.rearUnderCarriage;
+    }
+    if (n.includes('under') || n.includes('carriage') || n.includes('underbody')) {
+      return CE_IMAGES.frontUnderCarriage;
+    }
+
+    // 5. Tyres / Tracks (Front Right, Front Left, Rear Right, Rear Left, general)
+    if (
+      (n.includes('front right') || n.includes('frnt right') || n.includes('right front') || n.includes('rhs front') || n.includes('tyre 1') || n.includes('tyre1')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel') || n.includes('track'))
+    ) {
+      return CE_IMAGES.frontRightTyre;
+    }
+    if (
+      (n.includes('front left') || n.includes('frnt left') || n.includes('left front') || n.includes('lhs front') || n.includes('tyre 2') || n.includes('tyre2')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel') || n.includes('track'))
+    ) {
+      return CE_IMAGES.frontLeftTyre;
+    }
+    if (
+      (n.includes('rear right') || n.includes('back right') || n.includes('right rear') || n.includes('rhs rear') || n.includes('tyre 4') || n.includes('tyre4')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel') || n.includes('track'))
+    ) {
+      return CE_IMAGES.rearRightTyre;
+    }
+    if (
+      (n.includes('rear left') || n.includes('back left') || n.includes('left rear') || n.includes('lhs rear') || n.includes('tyre 3') || n.includes('tyre3')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel') || n.includes('track'))
+    ) {
+      return CE_IMAGES.rearLeftTyre;
+    }
+    if (
+      (n.includes('front') || n.includes('frnt')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel') || n.includes('track'))
+    ) {
+      return CE_IMAGES.frontRightTyre;
+    }
+    if (
+      (n.includes('rear') || n.includes('back')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel') || n.includes('track'))
+    ) {
+      return CE_IMAGES.rearRightTyre;
+    }
+    if (n.includes('tyre') || n.includes('tire') || n.includes('wheel') || n.includes('track')) {
+      return CE_IMAGES.frontRightTyre;
+    }
+
+    // 6. Engine View
+    if (n.includes('engine') || n.includes('eng') || n.includes('bonnet') || n.includes('hood') || n.includes('motor') || n.includes('hydraulic')) {
+      return CE_IMAGES.engineView;
+    }
+
+    // 7. Chassis Plate vs Chassis Imprint vs Chassis/VIN general
+    if (
+      n.includes('chassis plate') ||
+      n.includes('vin plate') ||
+      n.includes('id plate') ||
+      n.includes('metal plate') ||
+      n.includes('serial plate')
+    ) {
+      return CE_IMAGES.chassisPlate;
+    }
+    if (
+      n.includes('chassis imprint') ||
+      n.includes('chassis stamp') ||
+      n.includes('imprint') ||
+      n.includes('stamper') ||
+      n.includes('vin stamp') ||
+      n.includes('serial number stamp') ||
+      n.includes('number imprint')
+    ) {
+      return CE_IMAGES.chassisImprint;
+    }
+    if (
+      n.includes('chassis') ||
+      n.includes('vin') ||
+      n.includes('plate') ||
+      n.includes('frame') ||
+      n.includes('serial')
+    ) {
+      return CE_IMAGES.chassisImprint;
+    }
+
+    // 8. RC / Documents
+    if (
+      n.includes('rc') ||
+      n.includes('document') ||
+      n.includes('doc') ||
+      n.includes('registration') ||
+      n.includes('certificate') ||
+      n.includes('paper')
+    ) {
+      return TWO_WHEELER_IMAGES.rcDocuments;
+    }
+
+    // 9. Views / Sides (Left, Right, Back/Rear, Front)
+    if (
+      n.includes('left side') ||
+      n.includes('left view') ||
+      n.includes('left angle') ||
+      n.includes('left') ||
+      n.includes('lhs')
+    ) {
+      return CE_IMAGES.leftSide;
+    }
+    if (
+      n.includes('right side') ||
+      n.includes('right view') ||
+      n.includes('right angle') ||
+      n.includes('right') ||
+      n.includes('rhs')
+    ) {
+      return CE_IMAGES.rightSide;
+    }
+    if (
+      n.includes('rear side') ||
+      n.includes('rear view') ||
+      n.includes('rear angle') ||
+      n.includes('back side') ||
+      n.includes('back view') ||
+      n.includes('back angle') ||
+      n.includes('rear') ||
+      n.includes('back') ||
+      n.includes('bucket') ||
+      n.includes('arm') ||
+      n.includes('boom')
+    ) {
+      return CE_IMAGES.backSide;
+    }
+    if (
+      n.includes('front side') ||
+      n.includes('front view') ||
+      n.includes('front angle') ||
+      n.includes('front')
+    ) {
+      return CE_IMAGES.frontSide;
+    }
+  }
+
+  // ── FE (Farm Equipment / Tractor / Harvester) ──────────────────────────────
+  if (isFE) {
+    // 0. Selfie / Valuator Selfie
+    if (n.includes('selfie') || n.includes('valuator') || n.includes('inspector') || n.includes('user photo') || n.includes('profile')) {
+      return TWO_WHEELER_IMAGES.valuatorSelfie;
+    }
+
+    // 1. Odometer / Speedometer / Hour Meter / Meter
+    if (
+      n.includes('odometer') ||
+      n.includes('odmeter') ||
+      n.includes('speedometer') ||
+      n.includes('hour') ||
+      n.includes('meter')
+    ) {
+      return FE_IMAGES.odometer;
+    }
+
+    // 2. Driver / Operator Seat / Cabin Seat
+    if (
+      n.includes('driver seat') ||
+      n.includes('operator seat') ||
+      n.includes('cabin seat') ||
+      n.includes('seat') ||
+      n.includes('operator')
+    ) {
+      return FE_IMAGES.driverSeat;
+    }
+
+    // 3. Dashboard / Control Panel / Cabin / Steering
+    if (
+      n.includes('dashboard') ||
+      n.includes('cabin') ||
+      n.includes('interior') ||
+      n.includes('steering') ||
+      n.includes('control') ||
+      n.includes('panel')
+    ) {
+      return FE_IMAGES.dashboard;
+    }
+
+    // 4. Under Carriage (Front vs Rear / General)
+    if (
+      (n.includes('front') || n.includes('frnt')) &&
+      (n.includes('under') || n.includes('carriage') || n.includes('chassis bottom') || n.includes('bottom') || n.includes('underbody') || n.includes('axle'))
+    ) {
+      return FE_IMAGES.frontUnderCarriage;
+    }
+    if (
+      (n.includes('rear') || n.includes('back')) &&
+      (n.includes('under') || n.includes('carriage') || n.includes('chassis bottom') || n.includes('bottom') || n.includes('underbody') || n.includes('axle') || n.includes('pto') || n.includes('hitch'))
+    ) {
+      return FE_IMAGES.rearUnderCarriage;
+    }
+    if (n.includes('under') || n.includes('carriage') || n.includes('underbody')) {
+      return FE_IMAGES.frontUnderCarriage;
+    }
+
+    // 5. Tyres (Front Right, Front Left, Rear Right, Rear Left, general)
+    if (
+      (n.includes('front right') || n.includes('frnt right') || n.includes('right front') || n.includes('rhs front') || n.includes('tyre 1') || n.includes('tyre1')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel'))
+    ) {
+      return FE_IMAGES.frontRightTyre;
+    }
+    if (
+      (n.includes('front left') || n.includes('frnt left') || n.includes('left front') || n.includes('lhs front') || n.includes('tyre 2') || n.includes('tyre2')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel'))
+    ) {
+      return FE_IMAGES.frontLeftTyre;
+    }
+    if (
+      (n.includes('rear right') || n.includes('back right') || n.includes('right rear') || n.includes('rhs rear') || n.includes('tyre 4') || n.includes('tyre4')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel'))
+    ) {
+      return FE_IMAGES.rearRightTyre;
+    }
+    if (
+      (n.includes('rear left') || n.includes('back left') || n.includes('left rear') || n.includes('lhs rear') || n.includes('tyre 3') || n.includes('tyre3')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel'))
+    ) {
+      return FE_IMAGES.rearLeftTyre;
+    }
+    if (
+      (n.includes('front') || n.includes('frnt')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel'))
+    ) {
+      return FE_IMAGES.frontRightTyre;
+    }
+    if (
+      (n.includes('rear') || n.includes('back')) &&
+      (n.includes('tyre') || n.includes('tire') || n.includes('wheel'))
+    ) {
+      return FE_IMAGES.rearRightTyre;
+    }
+    if (n.includes('tyre') || n.includes('tire') || n.includes('wheel')) {
+      return FE_IMAGES.frontRightTyre;
+    }
+
+    // 6. Engine View
+    if (n.includes('engine') || n.includes('eng') || n.includes('bonnet') || n.includes('hood') || n.includes('motor')) {
+      return FE_IMAGES.engineView;
+    }
+
+    // 7. Chassis Plate vs Chassis Imprint vs Chassis/VIN general
+    if (
+      n.includes('chassis plate') ||
+      n.includes('vin plate') ||
+      n.includes('id plate') ||
+      n.includes('metal plate') ||
+      n.includes('serial plate')
+    ) {
+      return FE_IMAGES.chassisPlate;
+    }
+    if (
+      n.includes('chassis imprint') ||
+      n.includes('chassis stamp') ||
+      n.includes('imprint') ||
+      n.includes('stamper') ||
+      n.includes('vin stamp') ||
+      n.includes('serial number stamp') ||
+      n.includes('number imprint')
+    ) {
+      return FE_IMAGES.chassisImprint;
+    }
+    if (
+      n.includes('chassis') ||
+      n.includes('vin') ||
+      n.includes('plate') ||
+      n.includes('frame') ||
+      n.includes('serial')
+    ) {
+      return FE_IMAGES.chassisImprint;
+    }
+
+    // 8. RC / Documents
+    if (
+      n.includes('rc') ||
+      n.includes('document') ||
+      n.includes('doc') ||
+      n.includes('registration') ||
+      n.includes('certificate') ||
+      n.includes('paper')
+    ) {
+      return TWO_WHEELER_IMAGES.rcDocuments;
+    }
+
+    // 9. Views / Sides (Left, Right, Back/Rear, Front)
+    if (
+      n.includes('left side') ||
+      n.includes('left view') ||
+      n.includes('left angle') ||
+      n.includes('left') ||
+      n.includes('lhs')
+    ) {
+      return FE_IMAGES.leftSide;
+    }
+    if (
+      n.includes('right side') ||
+      n.includes('right view') ||
+      n.includes('right angle') ||
+      n.includes('right') ||
+      n.includes('rhs')
+    ) {
+      return FE_IMAGES.rightSide;
+    }
+    if (
+      n.includes('rear side') ||
+      n.includes('rear view') ||
+      n.includes('rear angle') ||
+      n.includes('back side') ||
+      n.includes('back view') ||
+      n.includes('back angle') ||
+      n.includes('rear') ||
+      n.includes('back') ||
+      n.includes('pto') ||
+      n.includes('hitch')
+    ) {
+      return FE_IMAGES.backSide;
+    }
+    if (
+      n.includes('front side') ||
+      n.includes('front view') ||
+      n.includes('front angle') ||
+      n.includes('front')
+    ) {
+      return FE_IMAGES.frontSide;
     }
   }
 
