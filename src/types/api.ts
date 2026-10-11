@@ -33,6 +33,7 @@ export interface LoginResponse {
   SubRoleId: number;
   SubRoleName: string;
   ProfileImage: string;
+  ExpireDate?: string | null;
   MenuList: any;
   Version: string | null;
   IP: string;

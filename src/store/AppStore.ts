@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { StoredUser, login, logout, getStoredUser } from '../services/AuthService';
 import { fetchAndSaveDashboard, getDashboard } from '../services/DashboardService';
 import { SyncManager } from '../services/Syncmanager';
+import { refreshToken } from '../services/TokenService';
 import { DashboardRecord, LoginRequest } from '../types/api';
 import { useValuationStore } from './valuation.store';
 import { useCreateLeadStore } from './CreateLeadStore';
@@ -26,6 +27,7 @@ interface AppState {
   loadStoredUser: () => Promise<void>;
   loginUser: (credentials: LoginRequest) => Promise<void>;
   logoutUser: () => Promise<void>;
+  refreshUserToken: () => Promise<void>;
   fetchDashboard: () => Promise<void>;
   markMyTaskNeedsRefresh: () => void;
   consumeMyTaskNeedsRefresh: () => boolean;
@@ -135,6 +137,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       isLoading: false,
     });
     console.log('[STORE] App state cleared — user should now see Login screen');
+  },
+
+  /** RefreshToken API → DB update → store me naya token */
+  refreshUserToken: async () => {
+    const { user } = get();
+    if (!user?.token) throw new Error('Not logged in');
+    const { token, expireDate } = await refreshToken(user.token, user.user_id);
+    set({ user: { ...user, token, token_expire_date: expireDate } });
   },
 
   /** Seedha DB se dashboard lo — bas itna */

@@ -116,6 +116,13 @@ export const fetchAndSaveLeadsByStatus = async (
   console.log('Token:', token);
   const res = await fetchLeadListStatuswiseApi(token, { StatusId: statusId });
 console.log(`Response of ${statusType}: `,res);
+  if (res.Error === '0' && Array.isArray(res.DataRecord) && res.DataRecord.length === 0) {
+    // Server ne successfully empty list di — purane cached leads hata do warna stale data dikhta rahega
+    await run("DELETE FROM status_leads WHERE status_type = ? AND id NOT LIKE 'OFFLINE_%'", [statusType]);
+    console.log(`[LEAD] ${statusType}: server list empty, cache cleared`);
+    return 0;
+  }
+
   if (res.Error !== '0' || !res.DataRecord?.length) {
     console.log(`[LEAD] ${statusType}: no data or error:`, res.Error, res.MESSAGE);
     return 0;

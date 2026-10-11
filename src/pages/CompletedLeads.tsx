@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View, RefreshControl, ToastAndroid } from "react-native";
+import React from "react";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View, RefreshControl } from "react-native";
 // @ts-ignore
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 // @ts-ignore
@@ -8,10 +8,8 @@ import { COLORS } from "../constants/Colors";
 import ClubSvg from "../assets/Club-svg";
 import HSVG from "../assets/H-Svg";
 import { useNavigation } from "@react-navigation/native";
-import { useFocusEffect } from "@react-navigation/native";
-import NetInfo from "@react-native-community/netinfo";
 import { getCompletedLeads, fetchAndSaveCompletedLeads } from "../services/AppLeadCompleted";
-import { useAppStore } from "../store/AppStore";
+import { useOnlineFirstData } from "../hooks/useOnlineFirstData";
 import type { AppLeadCompletedDataRecord } from "../services/types";
 
 const DEFAULT_LEADS_DATA: AppLeadCompletedDataRecord = {
@@ -46,66 +44,18 @@ const LeadCard = ({ title, count, icon, onPress }: LeadCardProps) => {
 
 export default function CompletedLeads() {
   const navigation = useNavigation<any>();
-  const { user } = useAppStore();
-  const [leadsData, setLeadsData] = useState<AppLeadCompletedDataRecord>(DEFAULT_LEADS_DATA);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const { data: leadsData, isLoading, refreshing, onRefresh } = useOnlineFirstData({
+    tag: "CompletedLeads",
+    initialData: DEFAULT_LEADS_DATA,
+    readLocal: getCompletedLeads,
+    fetchRemote: fetchAndSaveCompletedLeads,
+  });
 
   const handleNavigation = (pageName: string) => {
     console.log("Navigate to:", pageName);
     // Placeholder for navigation logic
     navigation.navigate(pageName);
   };
-
-  const loadData = useCallback(() => {
-    let isActive = true;
-    setIsLoading(true);
-    setError(null);
-
-    getCompletedLeads()
-      .then((data) => {
-        if (isActive && data) {
-          setLeadsData(data);
-        }
-      })
-      .catch((err: any) => {
-        console.error("[CompletedLeads] DB read error:", err);
-        if (isActive) {
-          setError("Failed to load completed leads");
-        }
-      })
-      .finally(() => {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
-
-  useFocusEffect(loadData);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      const netState = await NetInfo.fetch();
-      if (netState.isConnected && user?.token) {
-        await fetchAndSaveCompletedLeads(user.token);
-        console.log('[CompletedLeads] ✅ Refreshed from server');
-      } else {
-        ToastAndroid.show('Offline — showing cached data', ToastAndroid.SHORT);
-      }
-      loadData();
-    } catch (e) {
-      console.error('[CompletedLeads] Refresh error:', e);
-      ToastAndroid.show('Refresh failed', ToastAndroid.SHORT);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [user?.token, loadData]);
 
   return (
     <ScrollView
@@ -120,9 +70,6 @@ export default function CompletedLeads() {
           <ActivityIndicator size="large" color={COLORS.AppTheme.primary} />
           <Text style={styles.loaderText}>Loading...</Text>
         </View>
-      )}
-      {error && !isLoading && (
-        <Text style={styles.errorText}>{error}</Text>
       )}
       <View style={styles.grid}>
         <LeadCard
@@ -190,12 +137,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 14,
     color: "#4b5563",
-  },
-  errorText: {
-    textAlign: "center",
-    color: "#dc2626",
-    marginBottom: 10,
-    fontSize: 14,
   },
   card: {
     width: '48%',

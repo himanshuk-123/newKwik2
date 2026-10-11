@@ -54,6 +54,7 @@ export const FOUR_WHEELER_IMAGES = {
   frontLeftTyre: require('./4WImages/12_front_left_tyre.png'),
   rearRightTyre: require('./4WImages/13_rear_right_tyre.png'),
   rearLeftTyre: require('./4WImages/14_rear_left_tyre.png'),
+  valuatorSelfie: require('./4WImages/15_valuator_selfie.png'),
 };
 
 // ── CV (COMMERCIAL VEHICLE / BUS / TRUCK / LCV / HCV) ───────────────────────────
@@ -73,6 +74,7 @@ export const CV_IMAGES = {
   rearLeftTyre: require('./CVIcons/13_rear_left_tyre.png'),
   frontUnderCarriage: require('./CVIcons/14_front_under_carriage.png'),
   rearUnderCarriage: require('./CVIcons/15_rear_under_carriage.png'),
+  valuatorSelfie: require('./CVIcons/16_valuator_selfie.png'),
 };
 
 export const COMMERCIAL_VEHICLE_IMAGES = CV_IMAGES;
@@ -95,6 +97,7 @@ export const CE_IMAGES = {
   rearLeftTyre: require('./CEIcons/14_rear_left_tyre.png'),
   frontUnderCarriage: require('./CEIcons/15_front_under_carriage.png'),
   rearUnderCarriage: require('./CEIcons/16_rear_under_carriage.png'),
+  valuatorSelfie: require('./CEIcons/17_valuator_selfie.png'),
 };
 
 export const CONSTRUCTION_EQUIPMENT_IMAGES = CE_IMAGES;
@@ -117,6 +120,7 @@ export const FE_IMAGES = {
   rearLeftTyre: require('./FEIcons/14_rear_left_tyre.png'),
   frontUnderCarriage: require('./FEIcons/15_front_under_carriage.png'),
   rearUnderCarriage: require('./FEIcons/16_rear_under_carriage.png'),
+  valuatorSelfie: require('./FEIcons/17_valuator_selfie.png'),
 };
 
 export const FARM_EQUIPMENT_IMAGES = FE_IMAGES;
@@ -269,7 +273,7 @@ export const getVehicleCardImage = (cardName: string, vehicleType: string) => {
   if (is4W) {
     // 0. Selfie / Valuator Selfie
     if (n.includes('selfie') || n.includes('valuator') || n.includes('inspector') || n.includes('user photo') || n.includes('profile')) {
-      return TWO_WHEELER_IMAGES.valuatorSelfie;
+      return FOUR_WHEELER_IMAGES.valuatorSelfie;
     }
 
     // 1. Odometer / Speedometer / Meter
@@ -443,7 +447,7 @@ export const getVehicleCardImage = (cardName: string, vehicleType: string) => {
   if (isCV) {
     // 0. Selfie / Valuator Selfie
     if (n.includes('selfie') || n.includes('valuator') || n.includes('inspector') || n.includes('user photo') || n.includes('profile')) {
-      return TWO_WHEELER_IMAGES.valuatorSelfie;
+      return CV_IMAGES.valuatorSelfie;
     }
 
     // 1. Odometer / Speedometer / Meter
@@ -617,7 +621,7 @@ export const getVehicleCardImage = (cardName: string, vehicleType: string) => {
   if (isCE) {
     // 0. Selfie / Valuator Selfie
     if (n.includes('selfie') || n.includes('valuator') || n.includes('inspector') || n.includes('user photo') || n.includes('profile')) {
-      return TWO_WHEELER_IMAGES.valuatorSelfie;
+      return CE_IMAGES.valuatorSelfie;
     }
 
     // 1. Odometer / Speedometer / Hour Meter / Meter
@@ -807,7 +811,7 @@ export const getVehicleCardImage = (cardName: string, vehicleType: string) => {
   if (isFE) {
     // 0. Selfie / Valuator Selfie
     if (n.includes('selfie') || n.includes('valuator') || n.includes('inspector') || n.includes('user photo') || n.includes('profile')) {
-      return TWO_WHEELER_IMAGES.valuatorSelfie;
+      return FE_IMAGES.valuatorSelfie;
     }
 
     // 1. Odometer / Speedometer / Hour Meter / Meter

@@ -263,6 +263,17 @@ export const PENDING_VEHICLE_DETAILS_TABLE = `
 `;
 // Same pattern as pending_leads — LeadReportDataCreateedit API ke liye
 
+// ─── TOKEN EXPIRY REMINDERS ─────────────────────────────────────────────────
+// Har din ka ek row — popup din me sirf ek baar dikhe
+export const TOKEN_EXPIRY_REMINDERS_TABLE = `
+  CREATE TABLE IF NOT EXISTS token_expiry_reminders (
+    reminder_date TEXT PRIMARY KEY,
+    expire_date TEXT,
+    action TEXT DEFAULT 'shown',
+    shown_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`;
+
 // ✅ Sab tables — states aur cities included
 export const TABLES = [
   USER_TABLE,
@@ -282,4 +293,5 @@ export const TABLES = [
   DROPDOWN_CACHE_TABLE,
   CAR_MMV_CACHE_TABLE,
   PENDING_VEHICLE_DETAILS_TABLE,
+  TOKEN_EXPIRY_REMINDERS_TABLE,
 ];

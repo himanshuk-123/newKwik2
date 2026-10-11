@@ -1,13 +1,12 @@
-import React, { useCallback, useState } from 'react';
-import { View, FlatList, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ViewStyle, RefreshControl, ToastAndroid } from 'react-native';
+import React from 'react';
+import { View, FlatList, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ViewStyle, RefreshControl } from 'react-native';
 import { COLORS } from '../constants/Colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
-import { useFocusEffect } from '@react-navigation/native';
-import NetInfo from '@react-native-community/netinfo';
 import { getLeadsByStatus, fetchAndSaveLeadsByStatus } from '../services/LeadService';
 import { getDaybook, fetchAndSaveDaybook } from '../services/AppLeadDaybook';
-import { useAppStore } from '../store/AppStore';
+import { useOnlineFirstData } from '../hooks/useOnlineFirstData';
+import LeadSearchBar, { useLeadSearch } from '../components/LeadSearchBar';
 import { openUrlInBrowser } from '../utils/openUrlInBrowser';
 import { share } from '../utils/share';
 import { convertDateString } from '../utils/convertDateString';
@@ -28,6 +27,8 @@ interface DayBookData {
   Today: number;
 }
 
+const EMPTY_DAYBOOK: DayBookData = { lastmonth: 0, thismonth: 0, Today: 0 };
+
 interface CounterProps {
   primaryText: string;
   count: string | number;
@@ -44,56 +45,29 @@ const Counter = (props: CounterProps) => {
 };
 
 const ValuationCompletedLeadsPage = () => {
-  const { user } = useAppStore();
-  const [leads, setLeads] = useState<StatusLead[]>([]);
-  const [dayBook, setDayBook] = useState<DayBookData>({ lastmonth: 0, thismonth: 0, Today: 0 });
-  const [isLoading, setIsLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const loadData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const [leadsData, dayBookData] = await Promise.all([
+  const { data, isLoading, refreshing, onRefresh } = useOnlineFirstData({
+    tag: 'ValuationCompleted',
+    initialData: { leads: [] as StatusLead[], dayBook: EMPTY_DAYBOOK },
+    readLocal: async () => {
+      const [leads, dayBook] = await Promise.all([
         getLeadsByStatus('CompletedLeads'),
         getDaybook(),
       ]);
-      setLeads(leadsData as StatusLead[]);
-      setDayBook(dayBookData);
-    } catch (error) {
-      console.error('[ValuationCompleted] DB read error:', error);
-      setLeads([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadData();
-    }, [loadData])
-  );
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      const netState = await NetInfo.fetch();
-      if (netState.isConnected && user?.token) {
-        await Promise.all([
-          fetchAndSaveLeadsByStatus(user.token, 'CompletedLeads'),
-          fetchAndSaveDaybook(user.token),
-        ]);
-        console.log('[ValuationCompleted] ✅ Refreshed from server');
-      } else {
-        ToastAndroid.show('Offline — showing cached data', ToastAndroid.SHORT);
+      return { leads: leads as StatusLead[], dayBook };
+    },
+    fetchRemote: async (token) => {
+      // Ek API fail ho toh bhi doosri ka fresh data save ho jaye
+      const results = await Promise.allSettled([
+        fetchAndSaveLeadsByStatus(token, 'CompletedLeads'),
+        fetchAndSaveDaybook(token),
+      ]);
+      if (results.every(r => r.status === 'rejected')) {
+        throw (results[0] as PromiseRejectedResult).reason;
       }
-      await loadData();
-    } catch (e) {
-      console.error('[ValuationCompleted] Refresh error:', e);
-      ToastAndroid.show('Refresh failed', ToastAndroid.SHORT);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [user?.token, loadData]);
+    },
+  });
+  const { leads, dayBook } = data;
+  const { query, setQuery, filtered } = useLeadSearch(leads);
 
   const renderHeader = () => (
     <View style={styles.counterStack}>
@@ -169,9 +143,13 @@ const ValuationCompletedLeadsPage = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.searchWrapper}>
+        <LeadSearchBar value={query} onChangeText={setQuery} />
+      </View>
       <FlatList
         ListHeaderComponent={renderHeader}
-        data={leads}
+        data={filtered}
+        keyboardShouldPersistTaps="handled"
         renderItem={renderItem}
         keyExtractor={(item) => item.lead_uid?.toString() || Math.random().toString()}
         contentContainerStyle={styles.listContent}
@@ -181,7 +159,7 @@ const ValuationCompletedLeadsPage = () => {
         ListEmptyComponent={
           !isLoading ? (
             <View style={styles.center}>
-              <Text style={styles.textXl}>No completed leads found</Text>
+              <Text style={styles.textXl}>{query ? 'No leads match your search.' : 'No completed leads found'}</Text>
             </View>
           ) : null
         }
@@ -195,8 +173,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  searchWrapper: {
+    paddingHorizontal: 10,
+    paddingTop: 10,
+  },
   listContent: {
     padding: 10,
+    paddingTop: 0,
     paddingBottom: 20,
   },
   center: {

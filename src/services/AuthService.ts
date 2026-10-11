@@ -3,6 +3,7 @@ import { LoginRequest, LoginResponse } from '../types/api';
 import { select, run } from '../database/db';
 import { syncAllData } from './syncService';
 import RNFS from 'react-native-fs';
+import { normalizeExpireDate, clearExpiryReminders } from './TokenService';
 
 export interface StoredUser {
   id: number;
@@ -18,6 +19,7 @@ export interface StoredUser {
   sub_role_name: string;
   profile_image: string;
   otp_check: string;
+  token_expire_date: string | null;
 }
 
 export type LoginProgress = {
@@ -31,8 +33,8 @@ const saveUser = async (res: LoginResponse): Promise<void> => {
   await run(
     `INSERT OR REPLACE INTO users
       (user_id, login_user_id, mobile, email, shop_name, token,
-       role_id, role_name, sub_role_id, sub_role_name, otp_check, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+       role_id, role_name, sub_role_id, sub_role_name, otp_check, token_expire_date, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
     [
       res.USERID,
       res.LoginUserId,
@@ -45,6 +47,7 @@ const saveUser = async (res: LoginResponse): Promise<void> => {
       res.SubRoleId,
       res.SubRoleName,
       res.OTPCheck,
+      normalizeExpireDate(res.ExpireDate),
     ]
   );
 };
@@ -69,6 +72,7 @@ export const login = async (
   }
 
   onProgress?.({ stage: 'savingUser', message: 'Saving account...', progress: 35 });
+  console.log('[AuthService] Login ExpireDate:', res.ExpireDate, '→ saved as', normalizeExpireDate(res.ExpireDate));
   await saveUser(res);
 
   onProgress?.({ stage: 'syncing', message: 'Syncing workspace data...', progress: 45 });
@@ -95,6 +99,7 @@ export const logout = async (): Promise<void> => {
   await run('DELETE FROM status_leads', []);
   await run('DELETE FROM completed_leads', []);
   await run('DELETE FROM daybook', []);
+  await clearExpiryReminders();
   // await run('DELETE FROM pending_leads', []);
   await run("UPDATE sync_meta SET status = 'pending', last_synced_at = NULL", []);
 

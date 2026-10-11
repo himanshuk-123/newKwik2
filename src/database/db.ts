@@ -150,6 +150,8 @@ const MIGRATIONS: { version: number; sql: string }[] = [
   { version: 36, sql: `CREATE INDEX IF NOT EXISTS idx_image_captures_lead_id ON image_captures (lead_id)` },
   { version: 37, sql: `CREATE INDEX IF NOT EXISTS idx_image_captures_upload_status ON image_captures (upload_status)` },
   { version: 38, sql: `CREATE INDEX IF NOT EXISTS idx_image_captures_lead_status ON image_captures (lead_id, upload_status)` },
+  // v39 — Token expiry date (Login / RefreshToken API ka ExpireDate)
+  { version: 39, sql: `ALTER TABLE users ADD COLUMN token_expire_date TEXT DEFAULT NULL` },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

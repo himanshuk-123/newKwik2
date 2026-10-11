@@ -1,10 +1,9 @@
-import React, { useState, useCallback } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, View, RefreshControl, ToastAndroid } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
-import NetInfo from "@react-native-community/netinfo";
+import React from "react";
+import { ActivityIndicator, FlatList, StyleSheet, Text, View, RefreshControl } from "react-native";
 import { COLORS } from "../constants/Colors";
 import { getLeadsByStatus, fetchAndSaveLeadsByStatus } from "../services/LeadService";
-import { useAppStore } from "../store/AppStore";
+import { useOnlineFirstData } from "../hooks/useOnlineFirstData";
+import LeadSearchBar, { useLeadSearch } from "../components/LeadSearchBar";
 import { convertDateString } from "../utils/convertDateString";
 interface StatusLead {
   lead_uid: string;
@@ -15,49 +14,16 @@ interface StatusLead {
 }
 
 const LeadsInProgress = () => {
-  const { user } = useAppStore();
-  const [leads, setLeads] = useState<StatusLead[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { data: leads, isLoading, refreshing, onRefresh } = useOnlineFirstData<StatusLead[]>({
+    tag: "LeadsInProgress",
+    initialData: [],
+    readLocal: () => getLeadsByStatus("RoConfirmationLeads") as Promise<StatusLead[]>,
+    fetchRemote: (token) => fetchAndSaveLeadsByStatus(token, "RoConfirmationLeads"),
+  });
+  const { query, setQuery, filtered } = useLeadSearch(leads);
 
-  const loadLeads = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await getLeadsByStatus('RoConfirmationLeads');
-      setLeads(data as StatusLead[]);
-    } catch (err) {
-      console.error('[LeadsInProgress] Error loading RoConfirmationLeads:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadLeads();
-    }, [loadLeads])
-  );
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      const netState = await NetInfo.fetch();
-      if (netState.isConnected && user?.token) {
-        await fetchAndSaveLeadsByStatus(user.token, 'RoConfirmationLeads');
-        console.log('[LeadsInProgress] ✅ Refreshed from server');
-      } else {
-        ToastAndroid.show('Offline — showing cached data', ToastAndroid.SHORT);
-      }
-      await loadLeads();
-    } catch (e) {
-      console.error('[LeadsInProgress] Refresh error:', e);
-      ToastAndroid.show('Refresh failed', ToastAndroid.SHORT);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [user?.token, loadLeads]);
-
-  if (loading) {
+  // Cache khali ho tabhi full-screen loader; warna cached list + top spinner
+  if (isLoading && leads.length === 0) {
     return (
       <View style={styles.loaderContainer}>
         <ActivityIndicator size="large" color={COLORS.AppTheme.primary} />
@@ -66,53 +32,59 @@ const LeadsInProgress = () => {
   }
 
   return (
-    <FlatList
-      data={leads}
-      keyExtractor={(item) => item.lead_uid}
-      style={styles.screen}
-      contentContainerStyle={styles.pagePadding}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.AppTheme.primary]} />
-      }
-      renderItem={({ item: lead }) => (
-        <View style={styles.card}>
-          <View style={styles.cardRow}>
-            <View style={styles.leftColumn}>
-              <Text style={styles.textMdPrimary} numberOfLines={1}>
-                Lead Id: <Text style={styles.textBold}>{lead.lead_uid}</Text>
-              </Text>
-              <Text style={styles.textMdPrimary} numberOfLines={1}>
-                Reg. Number: <Text style={styles.textBold}>{lead.reg_no}</Text>
-              </Text>
-              <Text style={styles.textMdSecondary} numberOfLines={1}>
-                Name: <Text style={styles.textUpper}>{lead.customer_name}</Text>
-              </Text>
+    <View style={styles.screen}>
+      <View style={styles.searchWrapper}>
+        <LeadSearchBar value={query} onChangeText={setQuery} />
+      </View>
+      <FlatList
+        data={filtered}
+        keyboardShouldPersistTaps="handled"
+        keyExtractor={(item) => item.lead_uid}
+        style={styles.screen}
+        contentContainerStyle={styles.pagePadding}
+        refreshControl={
+          <RefreshControl refreshing={refreshing || isLoading} onRefresh={onRefresh} colors={[COLORS.AppTheme.primary]} />
+        }
+        renderItem={({ item: lead }) => (
+          <View style={styles.card}>
+            <View style={styles.cardRow}>
+              <View style={styles.leftColumn}>
+                <Text style={styles.textMdPrimary} numberOfLines={1}>
+                  Lead Id: <Text style={styles.textBold}>{lead.lead_uid}</Text>
+                </Text>
+                <Text style={styles.textMdPrimary} numberOfLines={1}>
+                  Reg. Number: <Text style={styles.textBold}>{lead.reg_no}</Text>
+                </Text>
+                <Text style={styles.textMdSecondary} numberOfLines={1}>
+                  Name: <Text style={styles.textUpper}>{lead.customer_name}</Text>
+                </Text>
+              </View>
+              <View style={styles.rightColumn}>
+                <Text style={styles.textLabel}>Created Date</Text>
+                <Text style={styles.textValue}>{convertDateString(lead.added_by_date)}</Text>
+              </View>
             </View>
-            <View style={styles.rightColumn}>
-              <Text style={styles.textLabel}>Created Date</Text>
-              <Text style={styles.textValue}>{convertDateString(lead.added_by_date)}</Text>
-            </View>
-          </View>
 
-          <View style={styles.cardRowBottom}>
-            <Text style={styles.statusText}>pending with qc</Text>
-            <View style={styles.rightColumn}>
-              <Text style={styles.textLabel}>Valuated Date</Text>
-              <Text style={styles.textValue}>{convertDateString(lead.qc_update_date) || 'NA'}</Text>
+            <View style={styles.cardRowBottom}>
+              <Text style={styles.statusText}>pending with qc</Text>
+              <View style={styles.rightColumn}>
+                <Text style={styles.textLabel}>Valuated Date</Text>
+                <Text style={styles.textValue}>{convertDateString(lead.qc_update_date) || 'NA'}</Text>
+              </View>
             </View>
           </View>
-        </View>
-      )}
-      ListEmptyComponent={
-        <View style={styles.noLeadsContainer}>
-          <Text style={styles.noLeadsText}>No leads in progress</Text>
-        </View>
-      }
-      initialNumToRender={10}
-      maxToRenderPerBatch={10}
-      windowSize={5}
-      removeClippedSubviews
-    />
+        )}
+        ListEmptyComponent={
+          <View style={styles.noLeadsContainer}>
+            <Text style={styles.noLeadsText}>{query ? "No leads match your search." : "No leads in progress"}</Text>
+          </View>
+        }
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews
+      />
+    </View>
   );
 };
 export default LeadsInProgress;
@@ -127,9 +99,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "white",
   },
+  searchWrapper: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    backgroundColor: "white",
+  },
   pagePadding: {
     paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingTop: 4,
+    paddingBottom: 20,
   },
   container: {
     gap: 14,

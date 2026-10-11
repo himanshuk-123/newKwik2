@@ -15,6 +15,7 @@ import { syncPendingLeads, resetStuckPendingLeads } from './src/services/syncSer
 import { submitCreateLeadApi } from './src/services/CreateLead';
 import NetInfo from '@react-native-community/netinfo';
 import SplashScreen from './src/components/SplashScreen';
+import TokenExpiryReminder from './src/components/TokenExpiryReminder';
 import { resetStuckUploads } from './src/database/imageCaptureDb';
 import 'react-native-reanimated';
 
@@ -99,6 +100,7 @@ React.useEffect(() => {
     <SafeAreaView style={{ flex: 1, backgroundColor: '#1181B2' }} edges={['top']}>
 
         <RootNavigator />
+        {user?.token ? <TokenExpiryReminder /> : null}
       </SafeAreaView>
     </GestureHandlerRootView>
   );

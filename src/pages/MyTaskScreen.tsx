@@ -257,6 +257,25 @@ const MyTasksPage = () => {
         </ScrollView>
       </View>
 
+      {/* Search bar list ke bahar — scroll karne pe bhi top pe fixed rahe */}
+      <View style={styles.searchWrapper}>
+        <TouchableWithoutFeedback onPress={() => searchRef.current?.blur()}>
+          <View style={styles.rowContainer}>
+            <TextInput
+              ref={searchRef}
+              value={searchText}
+              onChangeText={setSearchText}
+              placeholder="Search"
+              style={styles.input}
+              placeholderTextColor="grey"
+            />
+            <TouchableOpacity onPress={() => searchRef.current?.focus()}>
+              <Feather name="search" size={22} color="#666" />
+            </TouchableOpacity>
+          </View>
+        </TouchableWithoutFeedback>
+      </View>
+
       <FlatList
         data={filteredTasks}
         keyExtractor={(item) => item.id}
@@ -269,23 +288,6 @@ const MyTasksPage = () => {
             colors={[COLORS.AppTheme.primary]}
             tintColor={COLORS.AppTheme.primary}
           />
-        }
-        ListHeaderComponent={
-          <TouchableWithoutFeedback onPress={() => searchRef.current?.blur()}>
-            <View style={styles.rowContainer}>
-              <TextInput
-                ref={searchRef}
-                value={searchText}
-                onChangeText={setSearchText}
-                placeholder="Search"
-                style={styles.input}
-                placeholderTextColor="grey"
-              />
-              <TouchableOpacity onPress={() => searchRef.current?.focus()}>
-                <Feather name="search" size={22} color="#666" />
-              </TouchableOpacity>
-            </View>
-          </TouchableWithoutFeedback>
         }
         renderItem={({ item }) => {
           const isRepoCase = item.vehicle_type_name?.toLowerCase() === 'repo';
@@ -347,8 +349,9 @@ const styles = StyleSheet.create({
   iconButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginHorizontal: 6 },
   badge: { position: 'absolute', top: -5, right: -5, backgroundColor: '#fca5a5', borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
   badgeText: { fontSize: 10, fontWeight: 'bold', color: '#000' },
-  content: { flexGrow: 1, padding: 10 },
-  rowContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 9, paddingHorizontal: 10, marginBottom: 20 },
+  content: { flexGrow: 1, padding: 10, paddingTop: 0 },
+  searchWrapper: { paddingHorizontal: 10, paddingTop: 10 },
+  rowContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 9, paddingHorizontal: 10, marginBottom: 10 },
   input: { flex: 1, paddingVertical: 10 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   noDataText: { fontSize: 18, fontWeight: '500' },

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React from "react";
 import {
   ActivityIndicator,
   Linking,
@@ -8,14 +8,12 @@ import {
   TouchableOpacity,
   View,
   RefreshControl,
-  ToastAndroid,
 } from "react-native";
 import Feather from "react-native-vector-icons/Feather";
 import { COLORS } from "../constants/Colors";
-import { useFocusEffect } from "@react-navigation/native";
-import NetInfo from "@react-native-community/netinfo";
 import { getLeadsByStatus, fetchAndSaveLeadsByStatus } from "../services/LeadService";
-import { useAppStore } from "../store/AppStore";
+import { useOnlineFirstData } from "../hooks/useOnlineFirstData";
+import LeadSearchBar, { useLeadSearch } from "../components/LeadSearchBar";
 import { convertDateString } from "../utils/convertDateString";
 
 interface StatusLead {
@@ -84,52 +82,18 @@ const LeadCard = ({ lead }: { lead: StatusLead }) => {
 };
 
 export default function QCHoldLeads() {
-  const { user } = useAppStore();
-  const [qcHoldLeads, setQcHoldLeads] = useState<StatusLead[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const loadData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const data = await getLeadsByStatus('QCHoldLeads');
-      setQcHoldLeads(data as StatusLead[]);
-    } catch (error) {
-      console.error("[QCHoldLeads] DB read error:", error);
-      setQcHoldLeads([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadData();
-    }, [loadData])
-  );
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      const netState = await NetInfo.fetch();
-      if (netState.isConnected && user?.token) {
-        await fetchAndSaveLeadsByStatus(user.token, 'QCHoldLeads');
-        console.log('[QCHoldLeads] ✅ Refreshed from server');
-      } else {
-        ToastAndroid.show('Offline — showing cached data', ToastAndroid.SHORT);
-      }
-      await loadData();
-    } catch (e) {
-      console.error('[QCHoldLeads] Refresh error:', e);
-      ToastAndroid.show('Refresh failed', ToastAndroid.SHORT);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [user?.token, loadData]);
+  const { data: qcHoldLeads, isLoading, refreshing, onRefresh } = useOnlineFirstData<StatusLead[]>({
+    tag: "QCHoldLeads",
+    initialData: [],
+    readLocal: () => getLeadsByStatus("QCHoldLeads") as Promise<StatusLead[]>,
+    fetchRemote: (token) => fetchAndSaveLeadsByStatus(token, "QCHoldLeads"),
+  });
+  const { query, setQuery, filtered } = useLeadSearch(qcHoldLeads);
 
   return (
     <View style={styles.screen}>
       <View style={styles.pagePadding}>
+        <LeadSearchBar value={query} onChangeText={setQuery} />
         {isLoading && (
           <View style={styles.loaderContainer}>
             <ActivityIndicator size="large" color={COLORS.AppTheme.primary} />
@@ -137,7 +101,8 @@ export default function QCHoldLeads() {
           </View>
         )}
         <FlatList
-          data={qcHoldLeads}
+          data={filtered}
+          keyboardShouldPersistTaps="handled"
           keyExtractor={(item) => item.lead_uid}
           contentContainerStyle={styles.container}
           refreshControl={
@@ -147,7 +112,7 @@ export default function QCHoldLeads() {
           ListEmptyComponent={
             !isLoading ? (
               <View style={styles.noLeadsContainer}>
-                <Text style={styles.noLeadsText}>No leads found.</Text>
+                <Text style={styles.noLeadsText}>{query ? "No leads match your search." : "No leads found."}</Text>
               </View>
             ) : null
           }
@@ -167,6 +132,7 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
   },
   pagePadding: {
+    flex: 1,
     paddingHorizontal: 16,
     paddingVertical: 20,
   },
