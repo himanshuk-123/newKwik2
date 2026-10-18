@@ -135,7 +135,12 @@ const Dashboard = () => {
 
   // Safe data extraction
   const assigned = dashboard?.Assignedlead ?? 0;
-  const qcHold = dashboard?.RoConfirmation ?? 0;
+  // "Progress" = Leads In Progress ke saare stages (RO Confirmation + QC Pending + QC Hold + Pricing)
+  const qcHold =
+    (dashboard?.RoConfirmation ?? 0) +
+    (dashboard?.QC ?? 0) +
+    (dashboard?.QCHold ?? 0) +
+    (dashboard?.Pricing ?? 0);
   const completed = dashboard?.CompletedLeads ?? 0;
   const totalLeads = assigned + qcHold + completed;
 

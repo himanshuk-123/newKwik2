@@ -116,15 +116,22 @@ export const fetchAndSaveLeadsByStatus = async (
   console.log('Token:', token);
   const res = await fetchLeadListStatuswiseApi(token, { StatusId: statusId });
 console.log(`Response of ${statusType}: `,res);
-  if (res.Error === '0' && Array.isArray(res.DataRecord) && res.DataRecord.length === 0) {
-    // Server ne successfully empty list di — purane cached leads hata do warna stale data dikhta rahega
+  if (!res.DataRecord?.length) {
+    // Is status me koi lead nahi — server empty list pe bhi Error "1" + "No Record" bhejta hai.
+    // Purane cached leads hatao, warna completed lead "In Progress" me atki rehti hai.
+    // Sirf token/login wale error pe cache rakho, taaki offline data na mite.
+    const isAuthError = /token|session|unauthori|login|expire/i.test(res.MESSAGE ?? '');
+    if (isAuthError) {
+      console.warn(`[LEAD] ${statusType}: auth error, keeping cache:`, res.Error, res.MESSAGE);
+      return 0;
+    }
     await run("DELETE FROM status_leads WHERE status_type = ? AND id NOT LIKE 'OFFLINE_%'", [statusType]);
-    console.log(`[LEAD] ${statusType}: server list empty, cache cleared`);
+    console.log(`[LEAD] ${statusType}: server list empty, cache cleared (${res.Error} ${res.MESSAGE})`);
     return 0;
   }
 
-  if (res.Error !== '0' || !res.DataRecord?.length) {
-    console.log(`[LEAD] ${statusType}: no data or error:`, res.Error, res.MESSAGE);
+  if (res.Error !== '0') {
+    console.log(`[LEAD] ${statusType}: server error, keeping cache:`, res.Error, res.MESSAGE);
     return 0;
   }
 
@@ -404,6 +411,31 @@ export const getLeadsByStatus = async (statusType: LeadStatusType): Promise<any[
     'SELECT * FROM status_leads WHERE status_type = ? ORDER BY added_by_date DESC',
     [statusType]
   );
+};
+
+/** Kai status ki leads ek saath (Leads In Progress ke liye) */
+export const getLeadsByStatuses = async (statusTypes: LeadStatusType[]): Promise<any[]> => {
+  if (!statusTypes.length) return [];
+  const placeholders = statusTypes.map(() => '?').join(',');
+  return select(
+    `SELECT * FROM status_leads WHERE status_type IN (${placeholders}) ORDER BY added_by_date DESC`,
+    statusTypes
+  );
+};
+
+/** Har status me kitni leads saved hain — card ke numbers (list ki length ke barabar) */
+export const getLeadCountsByStatus = async (
+  statusTypes: LeadStatusType[]
+): Promise<Record<string, number>> => {
+  const counts: Record<string, number> = Object.fromEntries(statusTypes.map(t => [t, 0]));
+  if (!statusTypes.length) return counts;
+  const placeholders = statusTypes.map(() => '?').join(',');
+  const rows = await select<{ status_type: string; total: number }>(
+    `SELECT status_type, COUNT(*) AS total FROM status_leads WHERE status_type IN (${placeholders}) GROUP BY status_type`,
+    statusTypes
+  );
+  for (const r of rows) counts[r.status_type] = Number(r.total) || 0;
+  return counts;
 };
 
 // ─── PENDING LEADS RESET ──────────────────────────────────────────────────────

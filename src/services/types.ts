@@ -312,27 +312,6 @@ export interface AppStepListResponse {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// APP LEAD COMPLETED
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface AppLeadCompletedDataRecord {
-  ValuatorId: number;
-  qcpending: number;
-  qchold: number;
-  qccompleted: number;
-  completedLead: number;
-}
-
-export interface AppLeadCompletedResponse {
-  Error: string;
-  Status: string;
-  MESSAGE: string;
-  DataRecord: AppLeadCompletedDataRecord[];
-  DataDetails: null;
-  TotalCount: number;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // APP LEAD DAYBOOK
 // ─────────────────────────────────────────────────────────────────────────────
 

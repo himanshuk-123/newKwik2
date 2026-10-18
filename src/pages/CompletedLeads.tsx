@@ -8,16 +8,26 @@ import { COLORS } from "../constants/Colors";
 import ClubSvg from "../assets/Club-svg";
 import HSVG from "../assets/H-Svg";
 import { useNavigation } from "@react-navigation/native";
-import { getCompletedLeads, fetchAndSaveCompletedLeads } from "../services/AppLeadCompleted";
+import { fetchAndSaveLeadsByStatus, getLeadCountsByStatus } from "../services/LeadService";
+import type { LeadStatusType } from "../constants/LeadStats";
 import { useOnlineFirstData } from "../hooks/useOnlineFirstData";
-import type { AppLeadCompletedDataRecord } from "../services/types";
 
-const DEFAULT_LEADS_DATA: AppLeadCompletedDataRecord = {
-  qcpending: 0,
-  qccompleted: 0,
-  qchold: 0,
-  completedLead: 0,
-  ValuatorId: 0,
+/**
+ * Har card ka number = usi list me kitni leads hain (jo card dabane pe khulti hai).
+ * AppLeadCompleted API use nahi karte — wo user-specific nahi tha, numbers list se match nahi karte the.
+ */
+const CARD_STATUSES: LeadStatusType[] = ["QCLeads", "PricingLeads", "QCHoldLeads", "CompletedLeads"];
+
+const EMPTY_COUNTS: Record<string, number> = Object.fromEntries(CARD_STATUSES.map(s => [s, 0]));
+
+/** Charon list ek saath fetch — ek fail ho toh baaki ka fresh data phir bhi save ho */
+const fetchCardLists = async (token: string): Promise<void> => {
+  const results = await Promise.allSettled(
+    CARD_STATUSES.map(statusType => fetchAndSaveLeadsByStatus(token, statusType)),
+  );
+  if (results.every(r => r.status === "rejected")) {
+    throw (results[0] as PromiseRejectedResult).reason;
+  }
 };
 
 interface LeadCardProps {
@@ -44,11 +54,11 @@ const LeadCard = ({ title, count, icon, onPress }: LeadCardProps) => {
 
 export default function CompletedLeads() {
   const navigation = useNavigation<any>();
-  const { data: leadsData, isLoading, refreshing, onRefresh } = useOnlineFirstData({
+  const { data: counts, isLoading, refreshing, onRefresh } = useOnlineFirstData({
     tag: "CompletedLeads",
-    initialData: DEFAULT_LEADS_DATA,
-    readLocal: getCompletedLeads,
-    fetchRemote: fetchAndSaveCompletedLeads,
+    initialData: EMPTY_COUNTS,
+    readLocal: () => getLeadCountsByStatus(CARD_STATUSES),
+    fetchRemote: fetchCardLists,
   });
 
   const handleNavigation = (pageName: string) => {
@@ -74,19 +84,19 @@ export default function CompletedLeads() {
       <View style={styles.grid}>
         <LeadCard
           title="QC Pending"
-          count={leadsData.qcpending}
+          count={counts.QCLeads ?? 0}
           icon={<ClubSvg />}
           onPress={() => handleNavigation("QCLeads")}
         />
         <LeadCard
           title="QC Completed"
-          count={leadsData.qccompleted}
+          count={counts.PricingLeads ?? 0}
           icon={<HSVG />}
           onPress={() => handleNavigation("QCCompletedLeads")}
         />
         <LeadCard
           title="QC Hold"
-          count={leadsData.qchold}
+          count={counts.QCHoldLeads ?? 0}
           icon={
             <MaterialIcons
               name="pause"
@@ -98,7 +108,7 @@ export default function CompletedLeads() {
         />
         <LeadCard
           title="Completed Lead"
-          count={leadsData.completedLead}
+          count={counts.CompletedLeads ?? 0}
           icon={
             <MaterialCommunityIcons
               name="check-decagram"

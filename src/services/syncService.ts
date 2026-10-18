@@ -8,7 +8,6 @@ import { saveAllVehicleTypes } from './VehicleTypeService';
 import { saveAllYards } from './YardService';
 import { fetchAndSaveAllStatusLeads, syncPendingLeads } from './LeadService';
 import { saveAppStepsForAllVehicleTypes } from './AppStepService';
-import { fetchAndSaveCompletedLeads } from './AppLeadCompleted';
 import { fetchAndSaveDaybook } from './AppLeadDaybook';
 import { syncAllDropdownsForCategory, syncPendingVehicleDetails, syncMMVWarmup } from './VehicleDetailService';
 
@@ -54,7 +53,6 @@ export const syncAllData = async (
     syncYards(token),
     syncAllVehicleTypes(token),
     syncStatusLeads(token),
-    syncCompletedLeads(token),
     syncDaybook(token),
     syncDropdowns(token),
   ]);
@@ -184,19 +182,6 @@ const syncAppSteps = async (token: string): Promise<void> => {
     await updateSyncMeta('app_steps');
   } catch (e) {
     console.error('[SYNC] App Steps failed:', e);
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// COMPLETED LEADS (AppLeadCompleted API)
-// ─────────────────────────────────────────────────────────────────────────────
-
-const syncCompletedLeads = async (token: string): Promise<void> => {
-  try {
-    await fetchAndSaveCompletedLeads(token);
-    await updateSyncMeta('completed_leads');
-  } catch (e) {
-    console.error('[SYNC] Completed Leads failed:', e);
   }
 };
 

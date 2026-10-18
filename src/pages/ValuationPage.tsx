@@ -201,7 +201,7 @@ const ConditionModal = ({ open, sideName, questionsData, onSubmit, onClose }: Co
                           {(secondOptions.length ? secondOptions : ['Available', 'Not Available']).map(opt => (
                             <TouchableOpacity key={opt} style={[styles.optionButton, keyAvailable === opt && styles.optionButtonSelected]} onPress={() => setKeyAvailable(opt)} activeOpacity={0.7}>
                               <RNText style={[styles.optionButtonText, keyAvailable === opt && styles.optionButtonTextSelected]}>{opt}</RNText>
-                              </TouchableOpacity>
+                            </TouchableOpacity>
                           ))}
                         </View>
                       </>

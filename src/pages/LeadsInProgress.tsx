@@ -1,11 +1,14 @@
 import React from "react";
 import { ActivityIndicator, FlatList, StyleSheet, Text, View, RefreshControl } from "react-native";
 import { COLORS } from "../constants/Colors";
-import { getLeadsByStatus, fetchAndSaveLeadsByStatus } from "../services/LeadService";
+import { getLeadsByStatuses, fetchAndSaveLeadsByStatus } from "../services/LeadService";
+import { IN_PROGRESS_STAGES } from "../constants/LeadStats";
 import { useOnlineFirstData } from "../hooks/useOnlineFirstData";
 import LeadSearchBar, { useLeadSearch } from "../components/LeadSearchBar";
 import { convertDateString } from "../utils/convertDateString";
 interface StatusLead {
+  id: string;
+  status_type: string;
   lead_uid: string;
   reg_no: string;
   customer_name: string;
@@ -13,12 +16,56 @@ interface StatusLead {
   qc_update_date: string;
 }
 
+interface InProgressLead extends StatusLead {
+  stageLabel: string;
+  stageColor: string;
+}
+
+// Stage ke hisaab se label ka rang
+const STAGE_COLORS: Record<string, string> = {
+  RoConfirmationLeads: COLORS.Dashboard.text.Blue,
+  QCLeads: COLORS.Dashboard.text.Orange,
+  QCHoldLeads: "#dc2626",
+  PricingLeads: COLORS.Dashboard.text.Green,
+};
+
+const STAGE_TYPES = IN_PROGRESS_STAGES.map(s => s.statusType);
+const STAGE_BY_TYPE = new Map(IN_PROGRESS_STAGES.map(s => [s.statusType as string, s]));
+
+/** Saare pending stages ki leads → ek list, har lead pe uska stage. Ek lead do stage me ho toh aage wala. */
+const readInProgressLeads = async (): Promise<InProgressLead[]> => {
+  const rows = (await getLeadsByStatuses(STAGE_TYPES)) as StatusLead[];
+  const byLead = new Map<string, StatusLead>();
+  for (const row of rows) {
+    const key = row.id || row.lead_uid;
+    const existing = byLead.get(key);
+    const order = STAGE_BY_TYPE.get(row.status_type)?.order ?? 0;
+    const existingOrder = existing ? STAGE_BY_TYPE.get(existing.status_type)?.order ?? 0 : -1;
+    if (order > existingOrder) byLead.set(key, row);
+  }
+  return Array.from(byLead.values()).map(row => ({
+    ...row,
+    stageLabel: STAGE_BY_TYPE.get(row.status_type)?.label ?? "In Progress",
+    stageColor: STAGE_COLORS[row.status_type] ?? COLORS.Dashboard.text.Orange,
+  }));
+};
+
+/** Saare stages ek saath fetch — ek fail ho toh baaki ka fresh data phir bhi save ho */
+const fetchInProgressLeads = async (token: string): Promise<void> => {
+  const results = await Promise.allSettled(
+    STAGE_TYPES.map(statusType => fetchAndSaveLeadsByStatus(token, statusType)),
+  );
+  if (results.every(r => r.status === "rejected")) {
+    throw (results[0] as PromiseRejectedResult).reason;
+  }
+};
+
 const LeadsInProgress = () => {
-  const { data: leads, isLoading, refreshing, onRefresh } = useOnlineFirstData<StatusLead[]>({
+  const { data: leads, isLoading, refreshing, onRefresh } = useOnlineFirstData<InProgressLead[]>({
     tag: "LeadsInProgress",
     initialData: [],
-    readLocal: () => getLeadsByStatus("RoConfirmationLeads") as Promise<StatusLead[]>,
-    fetchRemote: (token) => fetchAndSaveLeadsByStatus(token, "RoConfirmationLeads"),
+    readLocal: readInProgressLeads,
+    fetchRemote: fetchInProgressLeads,
   });
   const { query, setQuery, filtered } = useLeadSearch(leads);
 
@@ -39,7 +86,7 @@ const LeadsInProgress = () => {
       <FlatList
         data={filtered}
         keyboardShouldPersistTaps="handled"
-        keyExtractor={(item) => item.lead_uid}
+        keyExtractor={(item) => item.id || item.lead_uid}
         style={styles.screen}
         contentContainerStyle={styles.pagePadding}
         refreshControl={
@@ -66,7 +113,9 @@ const LeadsInProgress = () => {
             </View>
 
             <View style={styles.cardRowBottom}>
-              <Text style={styles.statusText}>pending with qc</Text>
+              <View style={[styles.stageBadge, { borderColor: lead.stageColor }]}>
+                <Text style={[styles.statusText, { color: lead.stageColor }]}>{lead.stageLabel}</Text>
+              </View>
               <View style={styles.rightColumn}>
                 <Text style={styles.textLabel}>Valuated Date</Text>
                 <Text style={styles.textValue}>{convertDateString(lead.qc_update_date) || 'NA'}</Text>
@@ -109,10 +158,8 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     paddingBottom: 20,
   },
-  container: {
-    gap: 14,
-  },
   card: {
+    marginBottom: 12,
     backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
@@ -174,11 +221,16 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "right",
   },
+  stageBadge: {
+    flexShrink: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
   statusText: {
-    fontSize: 14,
-    color: COLORS.Dashboard.text.Orange,
+    fontSize: 13,
     fontWeight: "700",
-    textTransform: "capitalize",
   },
   noLeadsContainer: {
     alignItems: "center",
